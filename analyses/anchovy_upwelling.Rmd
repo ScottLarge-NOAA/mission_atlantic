@@ -1,0 +1,324 @@
+---
+title: "Non-stationary responses in anchovy (_Engraulis encrasicolus_) recruitment to
+  coastal upwelling in the Southern Benguela: Revisited"
+output: 
+  html_document:
+    code_folding: hide
+date: "2024-06-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## Introduction
+
+
+
+
+```{r load_dat, message = FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(patchwork)
+source("https://raw.githubusercontent.com/duncanobrien/ews-assessments/main/Code/threshold_gam.R")
+
+upwelling <- readRDS(here::here("data/upwelling_index.rds")) %>% 
+  filter(area == "total")
+
+recruitment <- readRDS(here::here("data/pelagic_recruitment.rds")) %>% 
+  filter(species == "Anchovy",
+         unit == "n",
+         year <= 2020)
+
+biomass <- readRDS(here::here("data/pelagic_biomass.rds")) %>% 
+  filter(species == "Anchovy",
+         year <= 2020,
+         indicator == "biomass") %>% 
+  mutate(value = case_when(indicator == "biomass" ~ value/1000000,
+                           indicator != "biomass" ~ value,
+                           TRUE ~ NA_integer_))
+
+```
+
+
+```{r intro_plots, fig.height = 7, fig.width = 6.5, warning=FALSE, message=FALSE}
+
+bio1 <- ggplot(biomass, aes(x = year, y = value, group = area, color = area)) +
+  geom_path() +
+  scale_color_brewer(palette = "Set2") +
+  scale_x_continuous(limits = c(1979, 2020), breaks = seq(1965, 2020, 5)) +
+  labs(x = "",
+       y = "",
+       title = "Anchovy spawner biomass",
+       subtitle = "spring/summer (October/November) acoustic survey (Million tonnes)") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  NULL
+
+rec1 <- ggplot(recruitment, aes(x = year, y = value)) +
+  geom_path() +
+  scale_x_continuous(limits = c(1979, 2020), breaks = seq(1965, 2020, 5)) +
+  labs(x = "",
+       y = "",
+       title = "Anchovy recruitment",
+       subtitle = "autumn/winter (May/June) acoustic survey (Billions)") +
+  theme_minimal() +
+  NULL
+
+## 
+upwelling_month <- upwelling %>% 
+  mutate(upwelling_date = lag(year, n = 6), ##  years run from July (previous year) to June (current year). eg: 1979 = 1 July 1979 to 30 June 1980
+         upwelling_year = lubridate::year(upwelling_date),
+         months = lubridate::month(year)) %>% 
+  filter(!is.na(upwelling_date)) 
+
+upwelling_dat <- upwelling_month %>% ## cumulative coastal upwelling from December to March
+  group_by(upwelling_year) %>%
+  summarize(value = sum(value, na.rm = TRUE))
+
+upwelling_summer_dat <- upwelling_month %>% 
+  filter(!is.na(upwelling_date), 
+         months %in% c(12, 1, 2, 3)) %>% ## cumulative coastal upwelling from December to March
+  group_by(upwelling_year) %>%
+  summarize(value = sum(value, na.rm = TRUE))
+
+## For comparison with Lamont et al 2018 Figure 6a
+# up_total <- ggplot(upwelling_dat, aes(x = upwelling_year, y = value/1000)) +
+#   geom_bar(stat = "identity") +
+#   scale_x_continuous(limits = c(1979, 2020), breaks = seq(1965, 2020, 5)) +
+#   labs(x = "", y = "", 
+#        title = "Upwelling index",
+#        subtitle = bquote("July-June cumulative upwelling"~(m^3~s^-1~100~m^-1)~x~1000)) +
+#   theme_minimal() +
+#   NULL
+
+up_summer <- ggplot(upwelling_summer_dat, aes(x = upwelling_year, y = value/1000)) +
+  geom_path() +
+  scale_x_continuous(limits = c(1979, 2020), breaks = seq(1965, 2020, 5)) +
+  labs(x = "", y = "", 
+       title = "Upwelling index",
+       subtitle = bquote("December-March cumulative upwelling"~(m^3~s^-1~100~m^-1)~x~1000)) +
+  theme_minimal() +
+  NULL
+
+up_summer / rec1/ bio1
+
+```
+
+
+
+
+
+```{r rec-plots, warning=FALSE, message=FALSE}
+
+up_rec <- recruitment %>%
+  select(year, recruits = value) %>% 
+  left_join(upwelling_summer_dat %>% rename(year = upwelling_year, upwelling = value),
+            join_by(year)) %>% 
+  mutate(upwelling = scale(upwelling)[,1],
+         recruits = scale(recruits)[,1]) %>% 
+  na.omit()
+
+cor_val <- cor(y = up_rec$recruits, x = up_rec$upwelling, method = c("pearson", "kendall", "spearman")[1])
+
+up_rec_p <- up_rec %>% 
+  pivot_longer(!year, names_to = "var", values_to = "val") 
+
+
+up_rec1 <- ggplot() +
+  geom_path(data = up_rec_p, aes(x = year, y = val, color = var)) +
+  scale_x_continuous(limits = c(1979, 2020), breaks = seq(1965, 2020, 5)) +
+  scale_color_manual(values = c("black", "red")) + 
+  labs(x = "", y = "", 
+       color = "", 
+       title = "Upwelling index and Anchovy recruitment",
+       subtitle = paste0("z-scored (scaled and centered), Pearson's r=", round(cor_val, 3))) +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  NULL
+up_rec1
+
+```
+
+
+```{r lag-corr}
+
+calculate_lags <- function(df, var, lags){
+  map_lag <- lags %>% purrr::map(~purrr::partial(lag, n = .x))
+  return(df %>% mutate(across(.cols = {{var}}, .fns = map_lag, .names = "{.col}_lag{lags}")))
+}
+
+
+corr_lags <- upwelling_month %>% 
+  select(year = upwelling_year, months, upwelling = value) %>% 
+  left_join(recruitment %>% select(year, recruits = value), by = join_by(year)) %>% 
+  group_by(months) %>% 
+  calculate_lags(var = upwelling, lags = 1L:3L) %>% 
+  summarize(`lag 0` = cor(x = recruits, y = upwelling, use = "complete.obs", method = "spearman"),
+            `lag 1` = cor(x = recruits, y = upwelling_lag1, use = "complete.obs", method = "spearman"),
+            `lag 2` = cor(x = recruits, y = upwelling_lag2, use = "complete.obs", method = "spearman"),
+            `lag 3` = cor(x = recruits, y = upwelling_lag3, use = "complete.obs", method = "spearman")) %>% 
+  pivot_longer(!months, names_to = "lags", values_to = "rho") %>% 
+  mutate(months = purrr::map(months, ~month.name[.x]),
+         months = factor(months, levels = c("July", "August", "September",
+                                            "October", "November", "December",
+                                            "January", "February", "March",
+                                            "April", "May", "June")))
+
+ggplot(corr_lags, aes(x = months, y = rho, group = lags, color = lags, fill = lags)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "",
+       subtitle = "",
+       x = "month",
+       y = "Spearman's rho",
+       color = "",
+       fill = "") +
+  theme_minimal() + 
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(angle = 45)) +
+  NULL
+
+
+
+# acf(recruitment %>% filter(year <= 2015) %>% pull(value), plot = FALSE, lag = 1)
+# acf(upwelling_summer_dat$value, plot = FALSE, lag = 1)
+
+
+```
+These potential linkages are statistically evident: anchovy recruitment (measured in May–June) is closely related to total spawner biomass measured 6 mo later in October–November (Pearson’s r = 0.83, p < 0.001 from 1985−2014), and adult biomass affects recruitment in the next year (Pearson’s r = 0.64, p < 0.001).
+
+```{r fig1}
+#### trying to figure out what van der Sleen did.  
+upwelling_lags <- upwelling_month %>% 
+  select(year = upwelling_year, months, upwelling = value) %>% 
+  left_join(recruitment %>% select(year, recruits = value), by = join_by(year)) %>% 
+  group_by(months) %>% 
+  calculate_lags(var = upwelling, lags = 3L) %>% 
+  filter(months %in% c(12, 1, 2, 3)) %>%
+  pivot_longer(cols = contains("upwelling"), names_to = "var", values_to = "val") %>% 
+  group_by(year, var) %>% 
+  summarize(val = sum(val, na.rm = TRUE))
+
+upwelling_lags <- bind_rows(upwelling_lags, 
+                recruitment %>% filter(species == "Anchovy") %>%  select(year, var = indicator, val = value) %>% 
+                  mutate(val = val)) %>% 
+  filter(year >= 1985,
+         year <= 2015) %>% 
+  group_by(var) %>% 
+  mutate(val = scale(val))
+
+ggplot(upwelling_lags)+
+  geom_path(aes(x = year, y = val, color = var)) +
+  scale_color_manual(values = c("black", "gray", "red")) +
+  theme_minimal() +
+  labs(x = "", y = "", 
+       color = "",
+       title = "Comparison of lagged upwelling and recruitment") +
+  theme(legend.position = "bottom") +
+  NULL
+
+upwelling_red <- expand.grid(upwelling_year = seq(from = 1979, length.out = 36),
+                             lambda = seq(from = 0.00, to = .99, by = 0.01)) %>% 
+  left_join(upwelling_summer_dat) %>% 
+  calculate_lags(var = value, lags = 1L:3L) %>% 
+  filter(upwelling_year > 1983) %>%
+  pivot_longer(cols = contains("value"), names_to = "upwelling", values_to = "value") %>% 
+  mutate(upwelling = gsub("value", "upwelling", upwelling),
+         upwelling = gsub("_", " ", upwelling),
+         upwelling = ifelse(upwelling == "upwelling", paste0(upwelling, " lag0"), upwelling)) %>% 
+  group_by(lambda, upwelling) %>%
+  mutate(value = scale(value)[,1],
+         red = (lambda*lag(value)) + value)
+
+ggplot(upwelling_red, aes(x = upwelling_year, y = red, group = lambda)) +
+  facet_wrap(~upwelling) +
+  geom_path(aes(color = lambda))
+
+upwelling_corr <- upwelling_red %>% 
+  pivot_wider(id_cols = c(upwelling_year, upwelling), names_from = lambda, values_from = red) %>% 
+  left_join(recruitment %>% select(upwelling_year = year, value)) %>% 
+  filter(upwelling_year > 1984) %>%
+  summarize(across(!c(upwelling_year, value), ~ cor(.x, value, method = "pearson"))) %>% 
+  pivot_longer(cols = !upwelling, names_to = "lambda", values_to = "value")
+
+ggplot(upwelling_corr, aes(x = lambda, y = value, group = upwelling, color = upwelling)) +
+  geom_point() +
+  theme_minimal() +
+  NULL
+
+
+```
+
+```{r upwelling_red}
+
+
+
+upwelling_red <- expand.grid(upwelling_year = seq(from = 1979, length.out = 36),
+                             lambda = seq(from = 0.00, to = .99, by = 0.01)) %>% 
+  left_join(upwelling_summer_dat) %>% 
+  filter(upwelling_year > 1983) %>%
+  group_by(lambda) %>%
+  mutate(value = scale(value)[,1],
+         red = (lambda*scale(lag(value))[,1] + value))
+
+ggplot(upwelling_red, aes(x = upwelling_year, y = red, by = lambda)) +
+  geom_path(aes(color = lambda))
+
+upwelling_corr <- upwelling_red %>% 
+  pivot_wider(id_cols = upwelling_year, names_from = lambda, values_from = red) %>% 
+  left_join(recruitment %>% select(upwelling_year = year, value)) %>% 
+  filter(upwelling_year > 1984) %>%
+  summarize(across(!c(upwelling_year, value), ~ cor(.x, value, method = "spearman"))) %>% 
+  pivot_longer(cols = everything(), names_to = "lambda", values_to = "value")
+
+ggplot(upwelling_corr, aes(x = lambda, y = value)) +
+  geom_point() +
+  theme_minimal() +
+  NULL
+
+
+```
+
+
+
+
+
+
+```{r tgam-time}
+## recruits ~ s(upwelling) + s(SSB)
+
+up_rec_ssb <- biomass %>% 
+  filter(species == "Anchovy") %>%
+  pivot_wider(id_cols = year, names_from = area, names_glue = "biomass_{area}", values_from = value) %>% 
+  left_join(recruitment %>% filter(species == "Anchovy") %>% select(year, recruits = value), join_by(year)) %>% 
+  left_join(upwelling_summer_dat %>% rename(upwelling = value), by = join_by(year == upwelling_year)) %>% 
+  mutate(upwelling = scale(upwelling)[,1],
+         red = (.70*scale(lag(upwelling))[,1] + upwelling)) %>% 
+  na.omit()
+  
+### environmental thresholds formula
+cont_formula <-  as.formula(paste("recruits ~ s(red, bs='tp', k=6)"))
+thresh_formula <- as.formula(paste("recruits ~ 1"))
+
+### temporal thresholds formula
+# cont_formula <-  as.formula(paste("density ~ s(date, bs='tp', k=6)"))
+# thresh_formula <- as.formula(paste("density ~ 1"))
+
+### gam
+dens_gam <- compare_gam(data = up_rec_ssb,
+                        cont_formula = formula(cont_formula, method = "REML"),
+                        thresh_formula =  formula(thresh_formula, method = "REML"),
+                        thresh.var = "biomass_west", expl.var = "red",
+                        thresh.range = c(0.1, 0.9), by = 1, k = 6)
+
+dens_gam$best
+
+best_gam <- predict_best_gam(object=dens_gam) |> 
+  dplyr::select(recruits,threshold,thresh.var,upwelling,thresh.var,
+                transition,fit,ci)
+
+```
