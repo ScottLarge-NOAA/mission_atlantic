@@ -229,6 +229,15 @@ sa_catches_m <- read_sheet("https://docs.google.com/spreadsheets/d/1ePUM5Ms3bzv9
 saveRDS(sa_catches_m, "data/pelagic_catch_monthly.rds")
 
 
+
+
+## Calendar table
+cal_tab <- read_sheet("https://docs.google.com/spreadsheets/d/12rYNpri4UQ8UUCIN9HGW7xrI48_gzEauaK4UWPiJdMU/edit?gid=0#gid=0")
+
+saveRDS(cal_tab, "data/calendar_table.rds")
+
+
+
 # ggplot(catches, aes(x = year, y = value/1000, group = species, fill = species, color = species)) +
 #   geom_path() +
 #   # geom_bar(stat = "identity") +
