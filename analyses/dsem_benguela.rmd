@@ -50,11 +50,12 @@ cal_tab <- readRDS(here::here("data/calendar_table.rds"))
 
 # Introduction ---
 
+* Ecosystems are comprised of many interacting processes. Causal models help to identify the magnitude and direction of direct and indirect effects between interacting variables.
 * IEA as tool for confronting trade-offs between multiple EBFM objectives 
-* Causal models help to identify the magnitude and direction of direct and indirect effects
-* Southern Benguela is an important and dynamic system, which has proven challenging to understand
+* Southern Benguela is an important and dynamic system
     + Environmental drivers: 
         + Upwelling
+            * 
         + BNI
             * Benguela Niños are thought to be associated with large-scale changes in wind patterns resulting in the poleward movement of warm tropical waters and may contribute to poor sardine recruitment (Boyer et al 2001)
             * Boyd et al. (1985) reported an order of magnitude reduction in sardine egg production, but good survival of larvae, following the 1984 Benguela Niño.
@@ -78,11 +79,12 @@ cal_tab <- readRDS(here::here("data/calendar_table.rds"))
 * *TODO* Create map with the relevant spots identified
 
 ## Data ---
+**(see supplement below for more figures)**
 
 * *TODO* Decide if we want to include SST. If so, figure out the SST boxes for Southern and Western coastal areas (Maybe in one of Lamant's papers)?
 
 * Benguela Niño index
-    + Benguela Niños are characterized by persistent warmer-than-normal SST in Angola and northern Namibia and vice versa for Benguela Niñas. Monthly mean SSTs are from the upgraded version of Optimum Interpolation SSTs with improved bias corrections (OIv2.1; Huang et al., 2021). OIv2.1 data are available from September 1981 onward and on a 1° by 1° resolution. Benguela Niño index are defined as the averaged SST anomalies (SSTAs) in (10°–20°S, 7°–11°E).
+    + Benguela Niños are characterized by persistent warmer-than-normal SST in Angola and northern Namibia and vice versa for Benguela Niñas. Monthly mean SSTs are from the upgraded version of Optimum Interpolation SSTs with improved bias corrections (OIv2.1; Huang et al., 2021). OIv2.1 data are available from September 1981 onward and on a 1° by 1° resolution. Benguela Niño index are defined as the averaged SST anomalies (SSTAs) in (10°–20°S, 7°–11°E). 
 ```{r bni_data}
 bni_summer <- benguela_nino %>% 
   mutate(year = lubridate::year(date),
@@ -118,7 +120,6 @@ bni_m <- ggplot(benguela_nino) +
 
 
 ```
-
 * Upwelling 
     + From Lamont et al 2018. Cumulative coastal upwelling from December to March
 ```{r, upwelling_dat}
@@ -151,7 +152,7 @@ up_summer <- ggplot(upwelling_summer_dat, aes(x = upwelling_year, y = value/1000
 
 ```
 * Primary Production
-    + *TODO* Check with Lynne on the source for these data. EwE data for the whole Southern Benguela
+    + *TODO* Check with Lynne on the source for these data. EwE data for the whole Southern Benguela. Are these forced using upwelling?
 ```{r pp_dat}
 
 ind_list <- c("Phytoplankon 1", "Phytoplakton 2")
@@ -180,7 +181,7 @@ pp_plot <- ggplot(pp_dat, aes(x = year, y = value, color = name)) +
 
 ```
 * Zooplankton
-    + *TODO* Check with Lynne on the source for these data. EwE data for the whole Southern Benguela
+    + *TODO* Check with Lynne on the source for these data. EwE data for the whole Southern Benguela. Are these forced using upwelling?
 ```{r zoop_data}
 zoop_dat <- all_dat %>% 
   filter(name %in% c("Macrozooplankton", "Mesozooplankton", "Microzooplankton")) %>% 
@@ -198,8 +199,8 @@ zoop_plot <- ggplot(zoop_dat, aes(x = year, y = value, color = name)) +
   NULL
 ```
 * Small pelagic population dynamics
-    + Recruitment
-    + Biomass
+    + Recruitment surveys occur between April and June
+    + Biomass surveys occur between October and November
 ```{r recruits, warning=FALSE, message=FALSE}
 
 rec1 <- ggplot(recruitment, aes(x = year, y = value, group = species, color = species)) +
@@ -232,7 +233,8 @@ bio1 <- ggplot(biomass, aes(x = year, y = value, group = species, color = specie
 
 ```
 * Fishing
-    + Small pelagic catches
+    + Small pelagic catches occur throughout the year (see supplemental . 
+    
 ```{r pel_catch, warning=FALSE, message=FALSE}
 
 sp_plot <- ggplot(catches, aes(x = year, y = value/1000, group = species, fill = species, color = species)) +
@@ -295,7 +297,6 @@ anch1 <- ggplot(anchovy_d, aes(x = month, y = year, height = value, group = year
   NULL
 
 ```
-* These data are aggregated according to their temporal occurrence
 ```{r calendar_table}
 
 month_ord <- month.name[c(7:12, 1:6)]
@@ -328,11 +329,13 @@ timeline_plot <- ggplot() +
   labs(x = "", y = "", 
        color = "lag",
        title = "Timeline for important Southern Benguela processes",
-       subtitle = "Lags indicate events in the current year (T = 0) that are affected in year T+lag)") +
+       subtitle = "Lags indicate events in the current year (T = 0) that are affected in year T+lag") +
   theme(legend.position = "bottom",
         axis.text.x = element_text(angle = 45, vjust = .5))
 
 ```
+
+* These data are aggregated according to their temporal occurrence
 
 ```{r dsem_data, warning=FALSE, message=FALSE}
 
@@ -363,7 +366,7 @@ sem_dat_long <- data.frame(year = 1977:2023) %>%
   group_by(var) %>% 
 ## Remove roundeye for now
   mutate(val = scale(val, scale = TRUE, center = TRUE)[,1]) %>% 
-  filter(!stringr::str_detect(var, "roundeye")) 
+  filter(!stringr::str_detect(var, "roundeye|_east|_west")) 
 
 sem_dat <- sem_dat_long %>% 
   pivot_wider(names_from = var, values_from = val) 
@@ -371,11 +374,12 @@ sem_dat <- sem_dat_long %>%
 zplot <- ggplot(sem_dat_long, aes(x = year, y = val, group = var, color = var)) +
   geom_path(show.legend = FALSE) +
   gghighlight::gghighlight(unhighlighted_params = list(alpha = 0.4)) +
-  facet_wrap(~var, ncol = 3) +
+  facet_wrap(~var, ncol = 2) +
   labs(x = "", y = "z-score", color = "",
        title = "Indicators used in dsem analysis") +
   theme_minimal() +
-  theme(legend.position = "bottom")
+  theme(legend.position = "bottom") +
+  NULL
 
 zplot
 
@@ -389,8 +393,219 @@ timeline_plot
 
 # Results ---
 
-## Anchovy model ---
-```{r sem_anchovy}
+* Simultaneous effects
+    + Upwelling has a significant positive relationship with large phytoplankton and a negative relationship with small phytoplankton.
+    + Large and small phytoplankton have significant positive relationships with all zooplankton size classes, but the largest effect size is between large phytoplankton and macrozooplankton and small phytoplankton and mesozooplankton. 
+    + Benguela Nino has a negative relationship with sardine recruits. 
+* Lag 1 (X in time T affects Y in time T+1)
+    + Microplankton have a significant positive relationship with both anchovy and sardine recruits
+    + Sardine recruits have a significant positive relationship with sardine total biomass, whereas anchovy does not have a strong relationship between recruits and biomass
+        + Anchovy catches don’t have a strong relationship with sardine biomass (maybe think about area/regional effects)
+* Lag 3 (X in time T affects Y in time T+3)
+    + Sardine biomass has a significant positive relationship with sardine catches
+
+```{r dag_full}
+dag_full <- phylopath::DAG(pp_large~upwelling,
+                           pp_small~upwelling,
+                           macrozooplankton~pp_large,
+                           mesozooplankton~pp_large,
+                           microzooplankton~pp_large,
+                           macrozooplankton~pp_small,
+                           mesozooplankton~pp_small,
+                           microzooplankton~pp_small,
+                           anchovy_recruits~macrozooplankton,
+                           anchovy_recruits~mesozooplankton,
+                           anchovy_recruits~microzooplankton,
+                           anchovy_biomass~anchovy_recruits,
+                           anchovy_catch~anchovy_biomass,
+                           sardine_recruits~macrozooplankton,
+                           sardine_recruits~mesozooplankton,
+                           sardine_recruits~microzooplankton,
+                           sardine_recruits~sbni,
+                           sardine_biomass~anchovy_catch,
+                           sardine_biomass~sardine_recruits,
+                           sardine_catch~sardine_biomass)
+
+df_plot <- plot(dag_full, edge_width = 1, type="width",
+                text_size = 4, show.legend = FALSE, box_x = 12) +
+  scale_x_continuous(expand = c(0.05, 0.05)) +  
+  labs(title = "directed acyclic graph - full") +
+  NULL
+
+df_plot
+```
+* Still need to figure out how to characterize the lags in the DAG
+
+```{r sem_full}
+
+sem_dat_full <- sem_dat %>% 
+  select(year, 
+         upwelling, sbni, ## environmental drivers
+         pp_large, pp_small, ## primary producers
+         macrozooplankton, mesozooplankton, microzooplankton, ## zooplankton
+         sardine_recruits, sardine_biomass_total, anchovy_recruits, anchovy_biomass_total,## fish
+         anchovy_catches, sardine_catches) %>% ## removals
+  as.data.frame()
+
+rownames(sem_dat_full) <- sem_dat_full$year
+sem_dat_full <- sem_dat_full[,-1]
+
+## guidance from ??make_dsem_ram()
+### X -> Y, 1, XtoY indicates that X in time T affects Y in time T+1)
+### X -> Y, 0, XtoY indicates X affects Y simultaneously (lag=0) 
+
+# Specify model
+sem_full <- "
+  # Link, lag, param_name (NA = off), fixed value (optional, 1 if param is off)
+  
+  upwelling -> pp_large, 0, upwelling_to_ppL
+  upwelling -> pp_small, 0, upwelling_to_ppS
+  pp_large -> macrozooplankton, 0, ppL_to_zoopMacro
+  pp_small -> macrozooplankton, 0, ppS_to_zoopMacro
+  pp_large -> mesozooplankton, 0, ppL_to_zoopMeso
+  pp_small -> mesozooplankton, 0, ppS_to_zoopMeso
+  pp_large -> microzooplankton, 0, ppL_to_zoopMicro
+  pp_small -> microzooplankton, 0, ppS_to_zoopMicro
+
+  sbni -> sardine_recruits, 0, sbni_to_recruitsS
+  macrozooplankton -> sardine_recruits, 1, zoopMacro_to_recruitsS
+  mesozooplankton -> sardine_recruits, 1, zoopMeso_to_recruitsS
+  microzooplankton -> sardine_recruits, 1, zoopMicro_to_recruitsS
+  sardine_recruits -> sardine_biomass_total, 1, recruitsA_to_biomssS
+  anchovy_catches -> sardine_biomass_total, 1, catchesA_to_biomassS
+  sardine_biomass_total -> sardine_catches, 3, biomassA_to_catchesS
+  
+  macrozooplankton -> anchovy_recruits, 1, zoopMacro_to_recruitsA
+  mesozooplankton -> anchovy_recruits, 1, zoopMeso_to_recruitsA
+  microzooplankton -> anchovy_recruits, 1, zoopMicro_to_recruitsA
+  anchovy_recruits -> anchovy_biomass_total, 1, recruitsA_to_biomssA
+  anchovy_biomass_total -> anchovy_catches, 1, biomassA_to_catches
+  
+  
+  ## AR
+  upwelling -> upwelling, 1, AR1, 0.001
+  pp_large -> pp_large, 1,  AR2, 0.001
+  pp_small -> pp_small, 1, AR3, 0.001
+  macrozooplankton -> macrozooplankton, 1, AR4, 0.001
+  mesozooplankton -> mesozooplankton, 1, AR5, 0.001
+  microzooplankton -> microzooplankton, 1, AR6, 0.001
+  anchovy_recruits ->  anchovy_recruits, 1, AR7, 0.001
+  anchovy_biomass_total -> anchovy_biomass_total, 1, AR8, 0.001
+  anchovy_catches -> anchovy_catches, 1, AR9, 0.001
+"
+# Fit dsem
+fit_full <- dsem( sem = sem_full,
+            tsdata = ts(sem_dat_full),
+            family =  rep('fixed', ncol(sem_dat_full)),
+            control = dsem_control(use_REML = TRUE, quiet=TRUE))
+
+ParHat_full = fit_full$obj$env$parList()
+
+full_summary <- summary(fit_full) %>% 
+  mutate(sig = cut(p_value, breaks = c(-Inf, 0.01, 0.05, 0.10, Inf), 
+                   labels = c("***", "**", "*", "NS")))
+
+```
+
+
+```{r dsem_full_dag, fig.height = 12, fig.width = 15}
+
+full_lags <- unique(as.numeric(summary(fit_full)$lag))
+for(i in full_lags){
+  
+  p1_full <- NULL
+  p2_full <- NULL
+
+  p1_full <- plot( (as_fitted_DAG(fit_full, lag = i)), edge_width = 1, type="width",
+                      text_size = 4, show.legend = FALSE, box_x = 12) +
+    scale_x_continuous(expand = c(0.05, 0.05)) +
+    labs(title = sprintf("lag %s effects", i)) +
+    NULL
+
+  p1_full <- ggplot_build(p1_full)
+  p1_full$data[[1]]$edge_width <- 1
+  
+  
+  p2_full <- plot( (as_fitted_DAG(fit_full, what="p_value", lag = i)), #edge_width = 2, 
+                      type = "width",
+                      text_size = 4, show.legend = FALSE, colors=c('black', 'black'), 
+                      box_x = 12) +
+    scale_x_continuous(expand = c(0.05, 0.05)) +
+    labs(title = sprintf("Two-sided p-value (lag %s)", i)) +
+    NULL
+  
+  
+  p2_full <- ggplot_build(p2_full)
+  p2_full$data[[1]]$edge_width <- 1
+  
+  print(wrap_ggplot_grob(ggplot_gtable(p1_full))/wrap_ggplot_grob(ggplot_gtable(p2_full)))
+}
+
+```
+
+```{r dsem_full_ts, warning=FALSE, message=FALSE}
+
+# Timeseries plot
+raw_dat_full <- data.frame(year = rownames(sem_dat_full), 
+                         sem_dat_full) %>% 
+  pivot_longer(!year, names_to = "var", values_to = "value")
+
+pred_model_full <- data.frame(year = rownames(sem_dat_full), 
+                         ParHat_full$x_tj) %>% 
+  pivot_longer(!year, names_to = "var", values_to = "predicted")
+
+pred_sd_full <- data.frame(year = rownames(sem_dat_full),
+                      as.list(fit_full$sdrep,what="Std.")$x_tj) %>% 
+  pivot_longer(!year, names_to = "var", values_to = "SD")
+
+pred_all_full <- raw_dat_full %>% 
+  left_join(pred_model_full, by = join_by(year, var)) %>% 
+  left_join(pred_sd_full, by = join_by(year, var)) %>% 
+  mutate(lower = predicted - ifelse(is.na(SD), 0, SD),
+         upper = predicted + ifelse(is.na(SD), 0, SD),
+         year = as.numeric(year)) 
+
+ts_plot_full <- ggplot(pred_all_full, aes(x = year, y = predicted, ymin = lower, ymax = upper, group = var)) +
+  geom_path() +
+  geom_ribbon(alpha = 0.2, color = "blue", fill = "blue") +
+  geom_point(aes(x = year, y = value)) +
+  facet_wrap(~var) +
+  scale_x_continuous(limits = c(1979, 2020), breaks = seq(1965, 2020, 5)) +
+  theme_minimal() +
+  labs(x = "", y = "",
+       title = "Estimated values",
+       subtitle = "measurements (black dots), predicted values (blue lines), and 95% predictive intervals (\u00B11.96 SE)") +
+  NULL
+ts_plot_full
+```
+
+
+
+# Discussion ---
+
+
+------
+
+## Supplemental plots
+
+### Data 
+```{r supplement_plots, include=TRUE}
+
+bni_m / bni_s
+up_summer
+pp_plot
+zoop_plot
+rec1
+bio1
+sp_plot
+sard1
+anch1
+
+```
+
+
+### Anchovy model ---
+```{r sem_anchovy,  echo = FALSE, message=FALSE, warning=FALSE}
 sem_dat_anch <- sem_dat %>% 
   select(year, upwelling, pp_large, pp_small, macrozooplankton,
          mesozooplankton, microzooplankton, 
@@ -443,6 +658,10 @@ fit_anch = dsem(sem = sem_anch,
 
 ParHat_anch = fit_anch$obj$env$parList()
 
+```
+
+```{r dag_anchovy}
+
 dag_anchovy <- phylopath::DAG(pp_large~upwelling,
                     pp_small~upwelling,
                     macrozooplankton~pp_large,
@@ -455,7 +674,6 @@ dag_anchovy <- phylopath::DAG(pp_large~upwelling,
                     anchovy_recruits~mesozooplankton,
                     anchovy_recruits~microzooplankton,
                     anchovy_biomass~anchovy_recruits,
-                    # anchovy_biomass~upwelling,
                     anchovy_catch~anchovy_biomass)
   
 da_plot <- plot(dag_anchovy, edge.width = 1, type="width",
@@ -504,45 +722,79 @@ ts_plot_anch <- ggplot(pred_all, aes(x = year, y = predicted, ymin = lower, ymax
 ts_plot_anch
 ```
 
+```{r dsem_anch_dag, fig.height = 12, fig.width = 15}
 
+anch_lags <- unique(as.numeric(summary(fit_anch)$lag))
+for(i in anch_lags){
+  
+  p1_anch <- NULL
+  p2_anch <- NULL
 
-```{r dsem_anch_dag}
+  p1_anch <- plot( (as_fitted_DAG(fit_anch, lag = i)), edge_width = 1, type="width",
+                      text_size = 4, show.legend = FALSE, box_x = 12) +
+    scale_x_continuous(expand = c(0.05, 0.05)) +
+    labs(title = sprintf("lag %s effects", i)) +
+    NULL
 
-# dag_plot0 <- plot( (as_fitted_DAG(fit, lag = 0)), type = "width", curvature = 0.01)
+  p1_anch <- ggplot_build(p1_anch)
+  p1_anch$data[[1]]$edge_width <- 1
+  
+  
+  p2_anch <- plot( (as_fitted_DAG(fit_anch, what="p_value", lag = i)), #edge_width = 2, 
+                      type = "width",
+                      text_size = 4, show.legend = FALSE, colors=c('black', 'black'), 
+                      box_x = 12) +
+    scale_x_continuous(expand = c(0.05, 0.05)) +
+    labs(title = sprintf("Two-sided p-value (lag %s)", i)) +
+    NULL
+  
+  p2_anch <- ggplot_build(p2_anch)
+  p2_anch$data[[1]]$edge_width <- 1
+  
+  print(wrap_ggplot_grob(ggplot_gtable(p1_anch))/wrap_ggplot_grob(ggplot_gtable(p2_anch)))
+}
 
-p1_anch <- plot( (as_fitted_DAG(fit_anch)), edge.width = 1, type="width",
-           text_size = 5, show.legend = FALSE, box_x = 30) +
-     scale_x_continuous(expand = c(0.4, 0.1))+
-  labs(title = "simultaneous effects")
-p1_anch$layers[[1]]$mapping$edge_width = 1
-p2_anch <- plot( (as_fitted_DAG(fit_anch, what="p_value")), edge.width = .5, type = "width",
-           text_size = 5, show.legend=FALSE, colors=c('black', 'black'), box_x = 30) +
-     scale_x_continuous(expand = c(0.4, 0.1)) +
-  labs(title = "Two-sided p-value")
-p2_anch$layers[[1]]$mapping$edge_width = 0.5
+# 
+# p1_anch <- plot( (as_fitted_DAG(fit_anch)), edge.width = 1, type="width",
+#            text_size = 5, show.legend = FALSE, box_x = 30) +
+#      scale_x_continuous(expand = c(0.4, 0.1))+
+#   labs(title = "simultaneous effects")
+# p1_anch$layers[[1]]$mapping$edge_width = 1
+# p2_anch <- plot( (as_fitted_DAG(fit_anch, what="p_value")), edge.width = .5, type = "width",
+#            text_size = 5, show.legend=FALSE, colors=c('black', 'black'), box_x = 30) +
+#      scale_x_continuous(expand = c(0.4, 0.1)) +
+#   labs(title = "Two-sided p-value")
+# p2_anch$layers[[1]]$mapping$edge_width = 0.5
+# 
+# 
 
+# 
+# p1_anch
+# p2_anch
 
-coef_dat_anch <- data.frame(name = colnames(sem_dat_anch), summary(fit_anch$sdrep)[1:9,]) %>% 
-  rename(coef = 2, "std_error" = 3) %>% 
+```
+
+```{r coef_anch}
+
+coef_dat_anch <- data.frame(name = colnames(sem_dat_anch), summary(fit_anch$sdrep)[1:9,]) %>%
+  rename(coef = 2, "std_error" = 3) %>%
   mutate(upper = coef + std_error,
          lower = coef - std_error)
 
 coef_plot_anch <- ggplot(coef_dat_anch, aes(x = name, y = coef, ymin = lower, ymax = upper)) +
   geom_hline(yintercept = 0) +
   geom_linerange() +
-  geom_point() + 
+  geom_point() +
   coord_flip() +
   labs(x = "", y = "standardized regression coefficient") +
   theme_bw()
 
-p1_anch
-p2_anch
 coef_plot_anch
 ```
 
-## Sardine model--- 
+### Sardine model--- 
 
-```{r sem_sardine}
+```{r sem_sardine, echo = FALSE}
 sem_dat_sardine <- sem_dat %>% 
   select(year, 
          upwelling, sbni, ## environmental drivers
@@ -554,9 +806,6 @@ sem_dat_sardine <- sem_dat %>%
 
 rownames(sem_dat_sardine) <- sem_dat_sardine$year
 sem_dat_sardine <- sem_dat_sardine[,-1]
-# z_sard = ts(sem_dat_sardine)
-
-# family = rep('fixed', ncol(sem_dat_sardine))
 
 ## guidance from ??make_dsem_ram()
 ### X -> Y, 1, XtoY indicates that X in time T affects Y in time T+1)
@@ -579,7 +828,7 @@ sem_sard <- "
   mesozooplankton -> sardine_recruits, 1, zoopMeso_to_recruitsS
   microzooplankton -> sardine_recruits, 1, zoopMicro_to_recruitsS
   sardine_recruits -> sardine_biomass_total, 1, recruitsA_to_biomssS
-  anchovy_catches -> sardine_biomass_total, 0, catchesA_to_biomassS
+  anchovy_catches -> sardine_biomass_total, 1, catchesA_to_biomassS
   sardine_biomass_total -> sardine_catches, 2, biomassA_to_catchesS
   
   upwelling -> upwelling, 1, AR1, 0.001
@@ -602,6 +851,37 @@ fit_sardine = dsem( sem = sem_sard,
             control = dsem_control(use_REML = TRUE, quiet=TRUE))
 
 ParHat_sardine = fit_sardine$obj$env$parList()
+
+
+```
+
+```{r dag_sardine}
+dag_sardine <- phylopath::DAG(pp_large~upwelling,
+                              pp_small~upwelling,
+                              macrozooplankton~pp_large,
+                              mesozooplankton~pp_large,
+                              microzooplankton~pp_large,
+                              macrozooplankton~pp_small,
+                              mesozooplankton~pp_small,
+                              microzooplankton~pp_small,
+                              sardine_recruits~macrozooplankton,
+                              sardine_recruits~mesozooplankton,
+                              sardine_recruits~microzooplankton,
+                              sardine_recruits~sbni,
+                              sardine_biomass~anchovy_catches,
+                              sardine_biomass~sardine_recruits,
+                              sardine_catch~sardine_biomass)
+
+ds_plot <- plot(dag_sardine,edge_width = 1, type="width",
+                text_size = 4, show.legend = FALSE, box_x = 12) +
+  scale_x_continuous(expand = c(0.05, 0.05)) +  
+  labs(title = "directed acyclic graph - sardine") +
+  NULL
+
+ds_plot <- ggplot_build(ds_plot)
+ds_plot$data[[1]]$edge_width <- 1
+plot(ggplot_gtable(ds_plot))
+
 ```
 
 ```{r dsem_sardine_ts, warning=FALSE, message=FALSE}
@@ -642,8 +922,7 @@ ts_plot_sardine
 
 ```{r dsem_sardine_dag, fig.height = 12, fig.width = 15}
 
-# dag_plot0 <- plot( (as_fitted_DAG(fit, lag = 0)), type = "width", curvature = 0.01)
-sard_lags <- max(as.numeric(summary(fit_sardine)$lag))
+sard_lags <- unique(as.numeric(summary(fit_sardine)$lag))
 for(i in 0:sard_lags){
   
   p1_sardine <- NULL
@@ -652,37 +931,32 @@ for(i in 0:sard_lags){
   p1_sardine <- plot( (as_fitted_DAG(fit_sardine, lag = i)), edge_width = 1, type="width",
                       text_size = 4, show.legend = FALSE, box_x = 12) +
     scale_x_continuous(expand = c(0.05, 0.05)) +
-        # scale_x_continuous(expand = expansion()) +
     labs(title = sprintf("lag %s effects", i)) +
     NULL
 
-   p1_sardine <- ggplot_build(p1_sardine)
- p1_sardine$data[[1]]$edge_width <- 1
- 
-    # p1_sardine$layers[[1]]$mapping$edge_width = 0.5
-# p1_sardine$layers[[1]]$mapping$edge_width 
-
+  p1_sardine <- ggplot_build(p1_sardine)
+  p1_sardine$data[[1]]$edge_width <- 1
+  
+  
   p2_sardine <- plot( (as_fitted_DAG(fit_sardine, what="p_value", lag = i)), #edge_width = 2, 
                       type = "width",
                       text_size = 4, show.legend = FALSE, colors=c('black', 'black'), 
                       box_x = 12) +
     scale_x_continuous(expand = c(0.05, 0.05)) +
-    # scale_x_continuous(expand = expansion())+
-    labs(title = "Two-sided p-value")
-    # p2_sardine$layers[[1]]$mapping$edge_width = 0.5
-  # p2_sardine$layers[[1]]$mapping$edge_width = as.symbol("1- abs(weight)")
- 
- p2_sardine <- ggplot_build(p2_sardine)
- p2_sardine$data[[1]]$edge_width <- 1
- 
- print(wrap_ggplot_grob(ggplot_gtable(p1_sardine))/wrap_ggplot_grob(ggplot_gtable(p2_sardine)))
-
- # print(p1_sardine/plot(tt))
-  # print(p2_sardine)
-
+    labs(title = sprintf("Two-sided p-value (lag %s)", i)) +
+    NULL
+  
+  
+  p2_sardine <- ggplot_build(p2_sardine)
+  p2_sardine$data[[1]]$edge_width <- 1
+  
+  print(wrap_ggplot_grob(ggplot_gtable(p1_sardine))/wrap_ggplot_grob(ggplot_gtable(p2_sardine)))
 }
-tt <- p2_sardine$data[[1]]
-p2_sardine$plot
+
+```
+
+```{r sard_coef}
+
 coef_dat_sardine <- data.frame(name = colnames(sem_dat_sardine), summary(fit_sardine$sdrep)[1:11,]) %>% 
   rename(coef = 2, "std_error" = 3) %>% 
   mutate(upper = coef + std_error,
@@ -699,25 +973,7 @@ coef_plot_sardine <- ggplot(coef_dat_sardine, aes(x = name, y = coef, ymin = low
 # p1_sardine
 # p2_sardine
 coef_plot_sardine
+
+
 ```
 
-
-# Discussion ---
-
-
-
-
-## Supplemental plots
-```{r supplement_plots, include=FALSE, echo = FALSE}
-
-bni_m / bni_s
-up_summer
-pp_plot
-zoop_plot
-rec1
-bio1
-sp_plot
-sard1
-anch1
-
-```
