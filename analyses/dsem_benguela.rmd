@@ -28,6 +28,12 @@ library(phylopath)
 all_dat <- readRDS(here::here("data/all_dat.rds"))
 benguela_nino <- readRDS(here::here("data/bni.rds"))
 
+agulhas_gradient <- readRDS(file = here::here("data/agulhas_gradient.rds"))
+pressure <- readRDS(file = here::here("data/pressure.rds"))
+cap_anomaly <- readRDS(file = here::here("data/cap_anomaly.rds"))
+tsa <- readRDS(file = here::here("data/tsa.rds"))
+
+
 upwelling <- readRDS(here::here("data/upwelling_index.rds")) %>% 
   filter(area == "total")
 
@@ -50,12 +56,18 @@ cal_tab <- readRDS(here::here("data/calendar_table.rds"))
 
 # Introduction ---
 
-* Ecosystems are comprised of many interacting processes. Causal models help to identify the magnitude and direction of direct and indirect effects between interacting variables.
+* Ecosystems are comprised of many interacting processes. Causal models help to identify the magnitude and direction of direct and indirect effects between interacting variables. Disentangle multiple drivers of ecosystem change
 * IEA as tool for confronting trade-offs between multiple EBFM objectives 
 * Southern Benguela is an important and dynamic system
-    + Environmental drivers: 
+    + Environmental drivers:
+        + Thermal spawning area - Richardson
+            *  Larval anchovy foraging conditions seem to be optimal in 16-19°C water (plankton production and the consistency of copepod biomass). A positive linear relationship has been found between egg abundance and the area of 16–19°C water over the western Agulhas Bank
+        + Cape Agulhas Pressure - Agenbag
+            * Efficient transport between the spawning grounds and the nursery area (Agenbag J.J. (1996). Increased wind velocity (high CAP index) over the anchovy transport area (Cape Point to Cape Columbine) is likely to result in improved transport.39 Hence it is thought that a high CAP anomaly for September–December should result in more efficient transport to the productive nursery grounds.
+            * Decadal signal in atmospheric pressure (Roy et al 2007) seen in NCEP/NCAR reanalysis data (see pressure plot)
         + Upwelling
-            * 
+            * Increased wind that drives upwelling also increases surface water advection offshore, which may decrease survival of early life history stages of small pelagic species during their transport from spawning grounds to the west coast nursery area (Augustin 2017).
+            * van der Lingen et al (2006) hypothesized that larger zooplankton are be more abundant when upwelling is stronger and smaller zooplankton more abundant when upwelling is weaker (van der Lingen et al., 2006), which could suggest that sardine diet is negatively influenced by upwelling.
         + BNI
             * Benguela Niños are thought to be associated with large-scale changes in wind patterns resulting in the poleward movement of warm tropical waters and may contribute to poor sardine recruitment (Boyer et al 2001)
             * Boyd et al. (1985) reported an order of magnitude reduction in sardine egg production, but good survival of larvae, following the 1984 Benguela Niño.
@@ -64,7 +76,7 @@ cal_tab <- readRDS(here::here("data/calendar_table.rds"))
             * (Imbol Koungue et al., 2019) Systematic study of Benguela Niño and Benguela Niña events during 1958 to 2015 including those that developed before the satellite era (1982) is carried out using an ocean general circulation model in combination with a linear equatorial model.)
     + Ecosystem processes
         + Phytoplankton
-            * wind-driven upwelling at discrete upwelling centres in the southern Benguela is strongly pulsed and shows greater seasonal differences, with a narrow band of high plankton productivity in the southern part, restricted to the narrow coastal zone by warm Agulhas water offshore forming a front.
+            * wind-driven upwelling at discrete upwelling centers in the southern Benguela is strongly pulsed and shows greater seasonal differences, with a narrow band of high plankton productivity in the southern part, restricted to the narrow coastal zone by warm Agulhas water offshore forming a front.
             * Close relationship is to be expected between primary production and upwelling of nutrient-rich water over short time scales, it is generally assumed that long-term shifts in upwelling-favourable winds will lead to changes in upwelling and, consequently, to changes in phytoplankton production and biomass on similar scales (Hampton, 2012). However, patterns observed from in situ and satellite data provide no clear indications to suggest that such a straight-forward link between primary production and upwelling variability occurs in the Benguela, but there is evidence of substantial interannual and decade-scale changes in both phytoplankton production and upwelling at a number of times and locations in both the northern and southern Benguela sub-systems.
 (Verheye et al 2016) 
         + Zooplankton
@@ -81,7 +93,58 @@ cal_tab <- readRDS(here::here("data/calendar_table.rds"))
 ## Data ---
 **(see supplement below for more figures)**
 
-* *TODO* Decide if we want to include SST. If so, figure out the SST boxes for Southern and Western coastal areas (Maybe in one of Lamant's papers)?
+* SST
+    + Anchovy thermal spawning suitability area (Richardson et al., 1998) 
+    + Standardized Cape Agulhas Pressure (CAP) anomaly. (Agenbag 1996) and Roy (2007)
+```{r remote_data}
+ag_plot <- ggplot(agulhas_gradient, aes(x = date, y = sst_gradient))+
+  geom_path() + 
+  geom_point() +
+  theme_minimal() +
+  scale_x_date(date_breaks = "5 years",
+               date_labels = "%Y") +
+  labs(title = "Agulhas cross-shelf gradient", 
+       subtitle = "Central Agulhas Bank Offshore SST - Central Agulhas Bank Coastal SST",
+       x = "",
+       y = "")
+# ag_plot
+
+pres_plot <- ggplot(pressure,aes(x = date, y = pressure), show.legend = FALSE) +
+  geom_path()+
+  geom_point()+
+  theme_minimal() +
+  scale_x_date(date_breaks = "5 years",
+               date_labels = "%Y") +
+  labs(title = "Atmospheric pressure (hPa)",
+       subtitle = "NCEP/NCAR Reanalysis",
+       x = "",
+       y = "")
+# pres_plot
+
+cap_plot <- ggplot(cap_anomaly) +
+  geom_bar(aes(x = date, y = cap_anomaly, fill = col), stat = "identity", show.legend = FALSE)+
+  geom_hline(yintercept = 0, linewidth = .75) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  theme_minimal() +
+  scale_x_date(date_breaks = "5 years",
+               date_labels = "%Y") +
+  scale_fill_manual(values = c("blue", "red")) +
+  labs(title = "Standardized Cape Agulhas Pressure (CAP) anomaly",
+       x = "",
+       y = "")
+# cap_plot
+
+tsa_plot <- ggplot(tsa, aes(x = year, y = proportion)) +
+  geom_path() +
+  geom_point() +
+  theme_minimal() +
+    labs(x = "", y = "",
+         title = "Thermal Spawning Area index",
+         subtitle = "proportion of Agulhas Bank SST within 16–19°C during September and October") +
+  NULL
+# tsa_plot
+
+```
 
 * Benguela Niño index
     + Benguela Niños are characterized by persistent warmer-than-normal SST in Angola and northern Namibia and vice versa for Benguela Niñas. Monthly mean SSTs are from the upgraded version of Optimum Interpolation SSTs with improved bias corrections (OIv2.1; Huang et al., 2021). OIv2.1 data are available from September 1981 onward and on a 1° by 1° resolution. Benguela Niño index are defined as the averaged SST anomalies (SSTAs) in (10°–20°S, 7°–11°E). 
@@ -120,7 +183,7 @@ bni_m <- ggplot(benguela_nino) +
 
 
 ```
-* Upwelling 
+* South Benguela Upwelling 
     + From Lamont et al 2018. Cumulative coastal upwelling from December to March
 ```{r, upwelling_dat}
 
@@ -151,6 +214,7 @@ up_summer <- ggplot(upwelling_summer_dat, aes(x = upwelling_year, y = value/1000
   NULL
 
 ```
+
 * Primary Production
     + *TODO* Check with Lynne on the source for these data. EwE data for the whole Southern Benguela. Are these forced using upwelling?
 ```{r pp_dat}
@@ -591,6 +655,10 @@ ts_plot_full
 ### Data 
 ```{r supplement_plots, include=TRUE}
 
+ag_plot
+pres_plot
+cap_plot
+tsa_plot
 bni_m / bni_s
 up_summer
 pp_plot

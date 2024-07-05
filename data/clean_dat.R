@@ -6,6 +6,7 @@ library(ggplot2)
 library(rerddap)
 library(googlesheets4)
 library(terra)
+library(tidyterra)
 library(sf)
 
 
@@ -196,7 +197,7 @@ saveRDS(benguela_nino, file = "data/bni.rds")
 #        y = "")
 
 ## Agulhas Bank SST indexes
-info("ncdcOisst21Agg")
+# info("ncdcOisst21Agg")
 # This function downloads and prepares data based on user provided start and end dates
 OISST_agulhas_dl <- function(time_df, latitude = c(-32, -38), longitude = c(16, 24)){
   OISST_dat <- rerddap::griddap(datasetx = "ncdcOisst21Agg",
@@ -224,7 +225,7 @@ agulhas_data <- dl_agulhas_years %>%
   dplyr::ungroup() %>% 
   dplyr::select(lon, lat, t, sst)
 
-saveRDS(agulhas_data, file = "data/agulhas_sst.rds")
+# saveRDS(agulhas_data, file = "data/agulhas_sst.rds")
 agulhas_data <- readRDS("data/agulhas_sst.rds")
 
 agulhas_zone <- agulhas_data %>% 
@@ -233,38 +234,24 @@ agulhas_zone <- agulhas_data %>%
                           between(lon, 22, 23) & between(lat, -35, -34) ~ "EABC",
                           between(lon, 20, 22) & between(lat, -36, -35) ~ "CABO",
                           TRUE ~ NA_character_),
-         t_month = format(agulhas_data$t, "%Y-%m")) %>% 
+         t_month = format(agulhas_data$t, "%Y-%m"),
+         month = lubridate::month(t),
+         year = lubridate::year(t)) %>% 
   na.omit(zone) %>% 
-  group_by(t_month, zone) %>%
+  filter(month %in% c(10:12)) %>% 
+  group_by(year, zone) %>%
   summarize(sst_mon = mean(sst, na.rm = TRUE),
             sst_cv = sd(sst, na.rm = TRUE)/sst_mon)
 
-agulhas_year <- agulhas_zone %>% 
-  ungroup() %>% 
-  mutate(year = lubridate::year(paste(t_month,"01", sep="-"))) %>% #, 
-         # year = format(agulhas_zone$date, "%Y")) %>%
-  group_by(zone, year) %>%
-  summarize(sst = mean(sst_mon, na.rm = TRUE)) %>% 
-  mutate(date = lubridate::ymd(paste(year,"01-01", sep="-")))
 
 agulhas_gradient <- agulhas_zone %>% 
   select(-sst_cv) %>% 
   filter(zone %in% c("CABO", "CABC")) %>% 
-  pivot_wider(names_from = zone, values_from = sst_mon) %>% 
+  pivot_wider(names_from = zone, values_from = sst_mon) %>%
   mutate(sst_gradient = CABO-CABC,
-         date = lubridate::ymd(paste(t_month,"01", sep="-")))
+         date = lubridate::ymd(paste(year,"01-01", sep="-")))
 
-ggplot(agulhas_year, aes(x = date, y = sst, group = zone, color = zone))+
-  geom_path() + 
-  facet_wrap(~zone)+
-  theme_minimal() +
-  scale_x_date(date_breaks = "5 years",
-               date_labels = "%Y") +
-  labs(title = "SST of Agulhas sub-domains",
-       x = "",
-       y = "")
-
-ggplot(agulhas_gradient %>% filter(t_month < "2005-12"), aes(x = date, y = sst_gradient))+
+ggplot(agulhas_gradient, aes(x = date, y = sst_gradient))+
   geom_path() + 
   geom_point() +
   theme_minimal() +
@@ -273,6 +260,28 @@ ggplot(agulhas_gradient %>% filter(t_month < "2005-12"), aes(x = date, y = sst_g
   labs(title = "Central Agulhas Bank Offshore - Central Agulhas Bank Coastal",
        x = "",
        y = "")
+saveRDS(agulhas_gradient, file = "data/agulhas_gradient.rds")
+# 
+# 
+# agulhas_year <- agulhas_zone %>% 
+#   ungroup() %>% 
+#   mutate(year = lubridate::year(paste(t_month,"01", sep="-"))) %>% #, 
+#          # year = format(agulhas_zone$date, "%Y")) %>%
+#   group_by(zone, year) %>%
+#   summarize(sst = mean(sst_mon, na.rm = TRUE)) %>% 
+#   mutate(date = lubridate::ymd(paste(year,"01-01", sep="-")))
+# 
+# ggplot(agulhas_year, aes(x = date, y = sst, group = zone, color = zone))+
+#   geom_path() + 
+#   facet_wrap(~zone)+
+#   theme_minimal() +
+#   scale_x_date(date_breaks = "5 years",
+#                date_labels = "%Y") +
+#   labs(title = "SST of Agulhas sub-domains",
+#        x = "",
+#        y = "")
+
+
 
 ## NCEP/NCAR Pressure
 # info('esrlNcepRe')
@@ -440,7 +449,7 @@ ggplot(cap_anomaly) +
 # ggplot(tt, aes(x = CAP, y = cap_anomaly)) +
 #   geom_point()
 
-## Thermal spawning area
+### Thermal spawning area ---
 # The area of 16–19°C water was computed from the five Agulhas Bank survey 
 # strata used during MCM spawner biomass surveys based on remotely sensed
 # satellite SST data obtained during September and October each year.
@@ -458,6 +467,8 @@ agulhas_tsa <- agulhas_data %>%
 sa_countries <- rnaturalearth::ne_countries(scale = 10,
                                             continent = "Africa",
                                             returnclass = "sf")
+
+## https://geonode.goosocean.org/layers/geonode:agulhas_bank_zooplankton_monitoring/metadata_detail
 spawner_sf <- read_sf(here::here("data/shapefiles/agulhas_bank_zooplankton_monitoring.shp"))
 sa_crs <- st_crs(spawner_sf)
 spawner_area <- st_area(spawner_sf)
@@ -510,8 +521,6 @@ ggplot(tsa, aes(x = year, y = proportion)) +
   theme_minimal() +
   NULL
 
-
-## https://geonode.goosocean.org/layers/geonode:agulhas_bank_zooplankton_monitoring/metadata_detail
 
 
 ## Catch data ------
