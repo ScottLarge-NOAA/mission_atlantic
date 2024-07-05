@@ -483,43 +483,43 @@ agulhas_rast <- terra::rast(agulhas_r, type="xyz")
 terra::crs(agulhas_rast) <- st_crs(sa_crs)$wkt
 tsa_mask <- terra::mask(agulhas_rast, spawner_sf, touches = FALSE)
 tsa_threshold <- terra::clamp(tsa_mask, lower = 16, upper = 19, values = FALSE)
+# 
+# ggplot() + 
+#   tidyterra::geom_spatraster(data = tsa_threshold[[5]]) +
+#   geom_sf(data = sa_countries) +
+#   geom_sf(data = spawner_sf, color = "red", fill = "transparent") +
+#   scale_fill_continuous(na.value = "transparent") +
+#   coord_sf(ylim = c(-38, -34), xlim = c(16, 24), crs = sa_crs) + 
+#   theme_bw() + 
+#   NULL
 
-
-library(tidyterra)
-ggplot() + 
-  tidyterra::geom_spatraster(data = tsa_threshold[[5]]) +
-  geom_sf(data = sa_countries) +
-  geom_sf(data = spawner_sf, color = "red", fill = "transparent") +
-  scale_fill_continuous(na.value = "transparent") +
-  coord_sf(ylim = c(-38, -34), xlim = c(16, 24), crs = sa_crs) + 
-  theme_bw() + 
-  NULL
-
-ggplot() + 
-  tidyterra::geom_spatraster_contour_filled(data = tsa_threshold, aes(fill = after_stat(level)),
-                                     na.rm = TRUE) +
-  geom_sf(data = sa_countries) +
-  geom_sf(data = spawner_sf, color = "black", fill = "transparent") +
-  coord_sf(ylim = c(-38, -34), xlim = c(16, 24), crs = sa_crs) + 
-  theme_bw() + 
-  NULL
-
-
-# terra::contour(agulhas_rast)
-# terra::expanse(tsa_threshold, unit = "m")$area
+# ggplot() + 
+#   tidyterra::geom_spatraster_contour_filled(data = tsa_mask, aes(fill = after_stat(level)),
+#                                      na.rm = TRUE) +
+#   geom_sf(data = sa_countries) +
+#   geom_sf(data = spawner_sf, color = "black", fill = "transparent") +
+#   coord_sf(ylim = c(-38, -34), xlim = c(16, 24), crs = sa_crs) + 
+#   theme_bw() + 
+#   NULL
 
 tsa <- agulhas_tsa %>% 
   select(year) %>%
   distinct() %>%
   mutate(area = terra::expanse(tsa_threshold, unit = "m")$area,
          spawner_area = spawner_area,
-         proportion = as.numeric(area/ spawner_area))
+         proportion = as.numeric(area/ spawner_area),
+         proportion = ifelse(proportion >= 1, 1, proportion))
 
-ggplot(tsa, aes(x = year, y = proportion)) +
-  geom_path() +
-  geom_point() +
-  theme_minimal() +
-  NULL
+saveRDS(tsa, file = "data/tsa.rds")
+
+# tsa_plot <- ggplot(tsa, aes(x = year, y = proportion)) +
+#   geom_path() +
+#   geom_point() +
+#   theme_minimal() +
+#     labs(x = "", y = "",
+#          title = "Thermal Spawning Area index",
+#          subtitle = "proportion of Agulhas Bank SST within 16–19°C during September and October") +
+#   NULL
 
 
 
