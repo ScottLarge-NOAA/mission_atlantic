@@ -77,14 +77,71 @@ upwelling_dat <- readxl::read_xlsx("data/upwelling_index_monthly_Lamont.xlsx",
   rename(year = 1,
          southern_benguela = 2,
          agulhas_bank = 3) %>% 
-  mutate(total = rowSums(pick(southern_benguela, agulhas_bank))) %>% 
+  # mutate(total = rowSums(pick(southern_benguela, agulhas_bank))) %>% 
   pivot_longer(!year, names_to = "area", values_to = "value") %>% 
   arrange(area, year)
 
-saveRDS(upwelling_dat, file = "data/upwelling_index.rds")
+# saveRDS(upwelling_dat, file = "data/upwelling_index.rds")
+
+upwelling_month <- upwelling_dat %>% 
+  group_by(area) %>%
+  mutate(upwelling_date = lag(year, n = 6), ##  years run from July (previous year) to June (current year). eg: 1979 = 1 July 1979 to 30 June 1980
+         upwelling_year = lubridate::year(upwelling_date),
+         months = lubridate::month(year),
+         area = case_when(area == "agulhas_bank" ~ "AB",
+                          area == "southern_benguela" ~ "SB",
+                          TRUE ~ NA_character_)) %>% 
+  filter(!is.na(upwelling_date)) 
+
+# upwelling_dat <- upwelling_month %>% ## cumulative coastal upwelling from December to February
+#   group_by(area, upwelling_year) %>%
+#   summarize(value = sum(value, na.rm = TRUE))
+
+upwelling_summer_dat <- upwelling_month %>% 
+  filter(!is.na(upwelling_date), 
+         months %in% c(12, 1, 2),
+         area != "total") %>% ## cumulative coastal upwelling from December to february
+  group_by(area, upwelling_year) %>%
+  summarize(value = mean(value, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(variable = paste0("upwelling_", area)) %>% 
+  select(year = upwelling_year, variable, value)
+
+mean_upwelling_ab <- read.csv("https://repository.ocean.gov.za/index.php/s/ipLnwLGk3Ekrnwz/download?path=&files=AB_shelf_seasonal_mean_total_cumulative_upwelling_timeseries.csv") %>% 
+  select(-starts_with("X"))
+mean_upwelling_sb <- read.csv("https://repository.ocean.gov.za/index.php/s/RZegn2aXMbjsryH/download?path=&files=SB_shelf_seasonal_mean_total_cumulative_upwelling_timeseries.csv") %>% 
+  select(-starts_with("X"))
+
+mean_upwelling <- mean_upwelling_ab %>% 
+  left_join(mean_upwelling_sb) %>% 
+  pivot_longer(-year, names_to = "variable", values_to = "value") %>% 
+  separate_wider_delim(variable, delim = "_", names = c("area", "type", "season", "var", "unit")) %>% 
+  filter(type == "shelf",
+         season == "summer") %>% 
+  mutate(variable = paste0(var, "_", area)) %>% 
+  select(year, variable, value) %>% 
+  pivot_wider(names_from = "variable", values_from = "value")
+
+ggplot() + 
+  geom_point(data = upwelling_summer_dat, aes(x = year, y = value/1000, color = variable), shape = 2) +
+  geom_point(data = mean_upwelling, aes(x = year, y = value/1000, color = variable), shape = 19) +
+  theme_minimal() +
+  theme(legend.position =  "bottom")
+
+upwelling_all <- bind_rows(upwelling_summer_dat, 
+                             mean_upwelling %>% filter(year > 2014))
+
+# ggplot() + 
+#   geom_path(data = upwelling_all, aes(x = year, y = value/1000, color = variable)) +
+#   theme_minimal() +
+#   theme(legend.position =  "bottom")
+# 
+saveRDS(upwelling_all, file = "data/upwelling_index.rds")
+
+  
 
 ## DFFE data ---------
-pelagic_r_dat <- read_sheet("https://docs.google.com/spreadsheets/d/1ePUM5Ms3bzv97jNfR9wV5cEpdcs2FLmH-u_cPNt3Xys/edit#gid=1722486359",
+  pelagic_r_dat <- read_sheet("https://docs.google.com/spreadsheets/d/1ePUM5Ms3bzv97jNfR9wV5cEpdcs2FLmH-u_cPNt3Xys/edit#gid=1722486359",
                             sheet = "dffe_recruit") %>% 
   pivot_longer(!year, names_to = "var", values_to = "value") %>% 
   separate(col = var, c("species", "indicator", "unit")) %>% 
@@ -576,3 +633,109 @@ saveRDS(cal_tab, "data/calendar_table.rds")
 #   labs(x = "", y = "tonnes (thousands)",
 #        title = "Small pelagic catches") + 
 #   NULL
+
+
+## Agulhas bank (Huggett et al 2023)
+agulhas_dat <- readxl::read_xlsx("data/Huggett_et_al_Timeseries_AB.xlsx") %>% 
+  filter(area == "ALL") %>%
+  select(year, sst_AB = tempsurf, #chla_AB = fluosurf,
+         copepod_AB = total_mgC_m2, 
+         calanus_AB = Cal_mgC_m2, SmCal_mgC_m2, Oithona_mgC_m2, Oncaea_mgC_m2) %>% 
+  mutate(smcopepod_AB = rowSums(select(., contains("mgC_m2"))))
+
+# tempsurf - Mean sea temperature (°C) near the surface (5 m depth)
+# fluosurf - Mean chlorophyll a (mg m-3) near the surface (5 m depth)
+# fluo30m - Mean chlorophyll a (mg m-3) at a depth of 30 m
+# total_mgC_m2 - Mean integrated total copepod biomass (mg C m-2) in the upper 200 m of the water column
+# Cal_mgC_m2 - Mean integrated biomass (mg C m-2) of Calanus agulhensis (all stages) in the upper 200 m of the water column
+# SmCal_mgC_m2 - Mean integrated biomass (mg C m-2) of small calanoid copepods (mainly Paracalanidae and Clausocalanidae) in the upper 200 m of the water column
+# Oithona_mgC_m2 - Mean integrated biomass (mg C m-2) of Oithonidae in the upper 200 m of the water column
+# Oncaea_mgC_m2 - Mean integrated biomass (mg C m-2) of Oncaeidae in the upper 200 m of the water column
+
+mean_chla_ab <- read.csv("https://repository.ocean.gov.za/index.php/s/fBF6LYP6mTtY7YP/download?path=&files=AB_shelf_openocean_seasonal_mean_reconstructed_chla_timeseries.csv")
+mean_chla_sb <- read.csv("https://repository.ocean.gov.za/index.php/s/ZsFSnxDbPompNJN/download?path=&files=SB_shelf_openocean_seasonal_mean_reconstructed_chla_timeseries.csv")
+
+mean_chla <- mean_chla_ab %>% 
+  left_join(mean_chla_sb) %>% 
+  pivot_longer(-year, names_to = "variable", values_to = "value") %>% 
+  separate_wider_delim(variable, delim = "_", names = c("area", "type", "season", "var")) %>% 
+  filter(type == "shelf",
+         season == "summer") %>% 
+  mutate(variable = paste0(var, "_", area)) %>% 
+  select(year, variable, value) %>% 
+  pivot_wider(names_from = "variable", values_from = "value")
+
+# ggplot(mean_chla, aes(x = year, y = value, color = season)) +
+#   geom_path() +
+#   facet_wrap(type~area, scales = "free_y") +
+#   theme_minimal() +
+#   labs(color = "", y = "", x = "") +
+#   theme(legend.position = "bottom")
+
+micro_sb <- read.csv("https://repository.ocean.gov.za/index.php/s/bnsJp3Rf3ryEoDf/download?path=&files=SB_shelf_openocean_seasonal_mean_reconstructed_microphytoplankton_proportion_timeseries.csv")
+nano_sb <- read.csv("https://repository.ocean.gov.za/index.php/s/e9DtYPtgsAeXHcN/download?path=&files=SB_shelf_openocean_seasonal_mean_reconstructed_nanophytoplankton_proportion_timeseries.csv")
+pico_sb <- read.csv("https://repository.ocean.gov.za/index.php/s/2dEn9XN4KZrYXKF/download?path=&files=SB_shelf_openocean_seasonal_mean_reconstructed_picophytoplankton_proportion_timeseries.csv")
+
+micro_ab <- read.csv("https://repository.ocean.gov.za/index.php/s/pc9YTctjmswKy8s/download?path=&files=AB_shelf_openocean_seasonal_mean_reconstructed_microphytoplankton_proportion_timeseries.csv")
+nano_ab <- read.csv("https://repository.ocean.gov.za/index.php/s/exfdZrFSjy9frGE/download?path=&files=AB_shelf_openocean_seasonal_mean_reconstructed_nanophytoplankton_proportion_timeseries.csv")
+pico_ab <- read.csv("https://repository.ocean.gov.za/index.php/s/X7RM2L9ifKioQwg/download?path=&files=AB_shelf_openocean_seasonal_mean_reconstructed_picophytoplankton_proportion_timeseries.csv")
+
+pp_size_dat <- micro_sb %>% 
+  left_join(nano_sb) %>% 
+  left_join(pico_sb) %>% 
+  left_join(micro_ab) %>% 
+  left_join(nano_ab) %>% 
+  left_join(pico_ab) %>% 
+  pivot_longer(-year, names_to = "variable", values_to = "value") %>% 
+  separate_wider_delim(variable, delim = "_", names = c("area", "type", "season", "var", "unit")) %>% 
+  filter(type == "shelf",
+         season == "summer") %>% 
+  mutate(var = gsub("phytoplankton", "", var),
+         variable = paste0(var, "_", area)) %>% 
+  select(year, variable, value) %>% 
+  pivot_wider(names_from = "variable", values_from = "value")
+
+# ggplot(pp_size_dat, aes(x = year, y = value, color = var)) +
+#   geom_path() +
+#   facet_grid(area~season, scales = "free_y") +
+#   theme_minimal() +
+#   labs(color = "", y = "", x = "") +
+#   theme(legend.position = "bottom")
+# 
+# 
+# sb_dat_pp <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1s2FCTq4-hFfVZ83U7k_RTLJxmAwIhOroCwhs7oD9gQE/edit?gid=1899541669#gid=1899541669",
+#                                     sheet = 2) %>% 
+#   mutate(species = gsub("phytoplankton", "", species),
+#          species = gsub("all", "chla", species),
+#          species = case_when(area == "southern benguela" ~ paste0(species, "_SB"),
+#                              area == "agulhas bank" ~ paste0(species, "_AB"),
+#                              # grep("all", species, value = TRUE) ~ ,
+#                              TRUE ~ species)) %>% 
+#   select(year, species, value) %>%
+#   pivot_wider(names_from = species, values_from = value)
+
+sb_dat_zp <- bind_rows(googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1s2FCTq4-hFfVZ83U7k_RTLJxmAwIhOroCwhs7oD9gQE/edit?gid=1899541669#gid=1899541669",
+                                                 sheet = 3),
+                       googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/1s2FCTq4-hFfVZ83U7k_RTLJxmAwIhOroCwhs7oD9gQE/edit?gid=1899541669#gid=1899541669",
+                                                 sheet = 1)) %>% 
+  mutate(species = case_when(grepl("small", species) ~ "smallzp",
+                             grepl("medium|large", species) ~ "mdlgzp",
+                             grepl("all", species) ~ "copepodabund", 
+                             TRUE ~ species),
+         species = case_when(area == "southern benguela" ~ paste0(species, "_SB"),
+                             TRUE ~ species)) %>% 
+  filter(season %in% c("summer", "autumn")) %>% 
+  group_by(year, species) %>% 
+  summarize(value = sum(value, na.rm = TRUE)) %>% 
+  select(year, species, value) %>% 
+  pivot_wider(names_from = species, values_from = value)
+
+ltl_dat <- sb_dat_zp %>% 
+  full_join(agulhas_dat) %>% 
+  full_join(mean_chla) %>% 
+  full_join(pp_size_dat)
+
+saveRDS(ltl_dat, file = "data/ltl_dat.rds")
+
+
+
