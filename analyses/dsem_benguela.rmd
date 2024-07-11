@@ -58,6 +58,7 @@ cal_tab <- readRDS(here::here("data/calendar_table.rds"))
 
 ltl_dat <- readRDS(here::here("data/ltl_dat.rds"))
 
+summer_sst <- readRDS(here::here("data/summer_sst.rds"))
 ```
 
 # Introduction ---
@@ -146,12 +147,16 @@ tsa_plot <- ggplot(tsa, aes(x = year, y = proportion)) +
   NULL
 # tsa_plot
 
-sst_plot <- ggplot(ltl_dat, aes(x = year, y = sst_AB)) +
+sst_wide <- summer_sst %>% 
+  pivot_wider(names_from = variable, values_from = mean)
+
+sst_plot <- ggplot(summer_sst, aes(x = year, y = mean, color = variable)) +
   geom_path() +
   geom_point() +
   theme_minimal() +
     labs(x = "", y = "",
-         title = "Interannual variability in mean temperature (°C) at the surface (5m)") +
+         title = "Mean temperature (°C)",
+         subtitle = "December-February OISST") +
   NULL
 # sst_plot
 
@@ -491,6 +496,7 @@ sem_dat_long <- data.frame(year = 1950:2023) %>%
   left_join(cap_anomaly %>% select(-date, -col, cap = cap_anomaly)) %>% 
   left_join(tsa %>% select(-area, -spawner_area, tsa = proportion)) %>% 
   left_join(agulhas_gradient %>% select(agulhas_gradient = sst_gradient, year)) %>% 
+  left_join(sst_wide) %>% 
   left_join(pp_wide) %>% 
   left_join(zoop_wide) %>% 
   left_join(rps_wide) %>% 
@@ -517,9 +523,9 @@ zplot <- ggplot(sem_dat_long, aes(x = year, y = val, group = var, color = var)) 
   theme(legend.position = "bottom") +
   NULL
 
-zplot
+# zplot
 
-timeline_plot
+# timeline_plot
 ```
 
 ## Causal modeling ---
@@ -573,7 +579,7 @@ df_plot
 * Still need to figure out how to characterize the lags in the DAG
 
 ```{r sem_full}
-
+colnames(sem_dat)
 sem_dat_full <- sem_dat %>% 
   select(year, 
          upwelling_AB, upwelling_SB, tsa, cap, agulhas_gradient,## environmental drivers
@@ -594,14 +600,24 @@ sem_dat_full <- sem_dat %>%
 sem_simple <- "
   # Link, lag, param_name (NA = off), fixed value (optional, 1 if param is off)
   
-  ## Environment mediates primary production
-  upwelling_SB -> chla_SB, 0, upwelling_to_ppSB
+  ## AB environment mediates primary production
+  upwelling_AB -> chla_AB, 0, upwelling_to_ppAB
+  sst_AB -> chla_AB, 0, sst_to_ppAB
   # chla_SB -> nano_SB, 0, pp_to_nanoSB
   # chla_SB -> pico_SB, 0, pp_to_picoSB
   # chla_SB -> micro_SB, 0, pp_to_microSB
 
+  ## SB environment mediates primary production
+  # upwelling_SB -> chla_SB, 0, upwelling_to_ppSB
+  # sst_SB -> chla_SB, 0, sst_to_ppSB
 
-  ## Trophic links between PP and zooplankton
+
+  ## AB Trophic links between PP and zooplankton
+  chla_SB -> mdlgzp_SB, 0, chla_to_largeZP
+  chla_SB -> copepodabund_SB, 0, chla_to_copeopodabundSP
+  chla_SB -> smallzp_SB, 0, chla_to_smallZP
+
+  ## SB Trophic links between PP and zooplankton
   chla_SB -> mdlgzp_SB, 0, chla_to_largeZP
   chla_SB -> copepodabund_SB, 0, chla_to_copeopodabundSP
   chla_SB -> smallzp_SB, 0, chla_to_smallZP

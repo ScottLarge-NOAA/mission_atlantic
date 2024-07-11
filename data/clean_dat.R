@@ -619,7 +619,7 @@ saveRDS(sa_catches_m, "data/pelagic_catch_monthly.rds")
 
 
 ## Calendar table
-cal_tab <- read_sheet("https://docs.google.com/spreadsheets/d/12rYNpri4UQ8UUCIN9HGW7xrI48_gzEauaK4UWPiJdMU/edit?gid=0#gid=0")
+cal_tab <- googlesheets4::read_sheet("https://docs.google.com/spreadsheets/d/12rYNpri4UQ8UUCIN9HGW7xrI48_gzEauaK4UWPiJdMU/edit?gid=0#gid=0")
 
 saveRDS(cal_tab, "data/calendar_table.rds")
 
@@ -738,4 +738,121 @@ ltl_dat <- sb_dat_zp %>%
 saveRDS(ltl_dat, file = "data/ltl_dat.rds")
 
 
+
+sb_sf <- read_sf(here::here("data/shapefiles/provinces.shp")) %>% 
+  st_crop(xmin = 8, ymin = -38, xmax = 20, ymax = -29)
+sa_crs <- st_crs(sb_sf)
+
+ab_sf <- read_sf(here::here("data/shapefiles/agulhas_bank_zooplankton_monitoring.shp")) %>% 
+  st_transform(sa_crs)
+
+xlims <- c(10, 22)
+ylims <- c(-38, -28)
+res <- 1
+bath_filename <- sprintf("marmap_coord_%s;%s;%s;%s_res_%s.csv",
+                         xlims[1], ylims[1], xlims[2], ylims[2], res)
+
+sa_bath <- marmap::getNOAA.bathy(lon1 = xlims[1], lon2 = xlims[2],
+                                 lat1 = ylims[1], lat2 = ylims[2],
+                                 resolution = res,
+                                 keep = TRUE) 
+
+bath_sp <- marmap::as.xyz(sa_bath) %>% 
+  mutate(V3 = ifelse(V3 > 0 | V3 < -1000, NA, V3)) %>% 
+  sf::st_as_sf(coords = c("V1","V2"), crs = sa_crs) %>% 
+  sf::st_intersection(sb_sf) %>% 
+  sf::st_transform(sa_crs)
+
+## Agulhas Bank SST indexes
+# info("ncdcOisst21Agg")
+# This function downloads and prepares data based on user provided start and end dates
+OISST_dl <- function(time_df, latitude = c(-28, -38), longitude = c(10, 24)){
+  OISST_dat <- rerddap::griddap(datasetx = "ncdcOisst21Agg",
+                                url = "https://coastwatch.pfeg.noaa.gov/erddap/", 
+                                time = c(time_df$start, time_df$end), 
+                                zlev = c(0, 0),
+                                latitude = latitude,
+                                longitude = longitude,
+                                fields = "sst")$data %>% 
+    dplyr::mutate(time = base::as.Date(stringr::str_remove(time, "T12:00:00Z"))) %>% 
+    dplyr::rename(t = time, sst = sst, lon = longitude, lat = latitude) %>% 
+    dplyr::select(lon, lat, t, sst) %>% 
+    stats::na.omit()
+}
+
+# Date download range by start and end dates per year
+dl_sst_years <- data.frame(date_index = 1:6,
+                           start = c("1982-01-01", "1990-01-01", 
+                                     "1998-01-01", "2006-01-01", 
+                                     "2014-01-01", "2020-01-01"),
+                           end = c("1989-12-31", "1997-12-31", 
+                                   "2005-12-31", "2013-12-31", 
+                                   "2019-12-31", "2023-12-31"))
+
+OISST_data <- dl_sst_years %>% 
+  dplyr::group_by(date_index) %>% 
+  dplyr::group_modify(~OISST_dl(.x)) %>% 
+  dplyr::ungroup() %>% 
+  dplyr::select(lon, lat, t, sst)
+
+# saveRDS(OISST_data, file = "data/oisst_sa.rds")
+# 
+
+sa_sst <- OISST_data %>%
+  mutate(t_month = format(t, "%Y-%m"),
+         month = lubridate::month(t),
+         year = lubridate::year(t),
+         lag_year = ifelse(month == 12, year +1, year)) %>%
+  filter(month %in% c(12, 1, 2)) %>% 
+  group_by(lag_year, lon, lat) %>% 
+  summarize(sst_mean = mean(sst, na.rm = TRUE)) %>% 
+  rename(year = lag_year) %>% 
+  as.data.frame()
+
+ab_r <- reshape(sa_sst, timevar = "year", idvar = c("lon", "lat"), direction = "wide")
+ab_rast <- terra::rast(ab_r, type = "xyz")
+
+terra::crs(ab_rast) <- st_crs(sa_crs)$wkt
+ab_mask <- terra::mask(x = ab_rast, mask = ab_sf, touches = TRUE)
+
+ab_means <- lapply(ab_mask, function(x) global(x, 'mean', na.rm = TRUE))
+
+ab_sst <- data.frame(year = 1982:2024,
+                     sst = do.call(rbind.data.frame, ab_means))
+
+sb_r <- reshape(sa_sst, timevar = "year", idvar = c("lon", "lat"), direction = "wide")
+sb_rast <- terra::rast(sb_r, type = "xyz")
+
+terra::crs(sb_rast) <- st_crs(sa_crs)$wkt
+sb_mask <- terra::mask(x = sb_rast, mask = bath_sp, touches = TRUE)
+
+sb_means <- lapply(sb_mask, function(x) global(x, 'mean', na.rm = TRUE))
+sb_sst <- data.frame(year = 1982:2024,
+                     sst = do.call(rbind.data.frame, sb_means))
+
+summer_sst <- bind_rows(ab_sst %>%  mutate(variable = "sst_AB"),
+                        sb_sst %>%  mutate(variable = "sst_SB"))
+
+# ggplot(summer_sst, aes(x = year, y = mean, color = variable)) +
+#   geom_path() +
+#   theme_minimal() +
+#   theme(legend.position = "bottom")
+saveRDS(summer_sst, file = "data/summer_sst.rds")
+# 
+# ggplot() + 
+#   geom_sf(data = country) +
+#   geom_tile(data = bat_sp, aes(x = V1, y = V2, fill = V3)) +
+#   # geom_sf(data = pp_sf) +
+#   # geom_sf(data = ab_sf) +
+#   # geom_contour(data = bat_sp,
+#   #              aes(x = V1, y = V2, z = V3),
+#   #              binwidth = 100, color = "grey85", size = 0.1) +
+#   # geom_contour(data = bat_sp,
+#   #              aes(x = V1, y = V2, z = V3),
+#   #              breaks = -1000, color = "grey85", size = 0.5) +
+#   geom_sf(data = country) +
+#   coord_sf(xlim = xlims, 
+#            ylim = ylims) +
+#   labs(x = "Longitude",  y = "Latitude", fill = "Depth (m)") +
+#   theme_minimal()
 
