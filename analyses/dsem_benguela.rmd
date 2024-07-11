@@ -579,17 +579,16 @@ df_plot
 * Still need to figure out how to characterize the lags in the DAG
 
 ```{r sem_full}
-colnames(sem_dat)
+# colnames(sem_dat)
 sem_dat_full <- sem_dat %>% 
   select(year, 
-         upwelling_AB, upwelling_SB, tsa, cap, agulhas_gradient,## environmental drivers
+         upwelling_AB, upwelling_SB, tsa, cap, agulhas_gradient, sst_AB, sst_SB, ## environmental drivers
          chla_SB, chla_AB, ## primary production
-         pico_SB, pico_AB, nano_SB, nano_AB, micro_SB, micro_AB, ## phytoplankton size
+         # pico_SB, pico_AB, nano_SB, nano_AB, micro_SB, micro_AB, ## phytoplankton size
          copepodabund_SB, accs_SB, mdlgzp_SB, smallzp_SB, copepod_AB, calanus_AB, smcopepod_AB, # zooplankton community     
          biomass_Anchovy, biomass_Sardine, log_rps_Anchovy, log_rps_Sardine,## fish
          anchovy_catches, sardine_catches) %>% ## removals
   as.data.frame()
-
 
 
 ## guidance from ??make_dsem_ram()
@@ -603,59 +602,65 @@ sem_simple <- "
   ## AB environment mediates primary production
   upwelling_AB -> chla_AB, 0, upwelling_to_ppAB
   sst_AB -> chla_AB, 0, sst_to_ppAB
-  # chla_SB -> nano_SB, 0, pp_to_nanoSB
-  # chla_SB -> pico_SB, 0, pp_to_picoSB
-  # chla_SB -> micro_SB, 0, pp_to_microSB
 
   ## SB environment mediates primary production
-  # upwelling_SB -> chla_SB, 0, upwelling_to_ppSB
-  # sst_SB -> chla_SB, 0, sst_to_ppSB
-
+  upwelling_SB -> chla_SB, 0, upwelling_to_ppSB
+  sst_SB -> chla_SB, 0, sst_to_ppSB
 
   ## AB Trophic links between PP and zooplankton
-  chla_SB -> mdlgzp_SB, 0, chla_to_largeZP
-  chla_SB -> copepodabund_SB, 0, chla_to_copeopodabundSP
-  chla_SB -> smallzp_SB, 0, chla_to_smallZP
+  chla_AB -> copepod_AB, 0, chla_to_copepodAB
+  chla_AB -> calanus_AB, 0, chla_to_calanusAB
+  chla_AB -> smcopepod_AB, 0, chla_to_smallcopepodAB
 
   ## SB Trophic links between PP and zooplankton
-  chla_SB -> mdlgzp_SB, 0, chla_to_largeZP
-  chla_SB -> copepodabund_SB, 0, chla_to_copeopodabundSP
-  chla_SB -> smallzp_SB, 0, chla_to_smallZP
+  chla_SB -> mdlgzp_SB, 0, chla_to_largezpSB
+  chla_SB -> copepodabund_SB, 0, chla_to_copeopodabundSB
+  chla_SB -> smallzp_SB, 0, chla_to_smallzpSB
+  chla_SB -> accs_SB, 0, chla_to_accsSB
 
-  ## Trophic
-  mdlgzp_SB -> log_rps_Anchovy, 0, largeZP_to_rpsA
-  smallzp_SB -> log_rps_Sardine, 0, smallZP_to_rpsS
-  copepodabund_SB -> log_rps_Anchovy, 0, copepodabund_to_rpsA
-  chla_SB -> log_rps_Sardine, 0, chla_to_rpsS
-
-
-  ## Stock recruit
-  biomass_Anchovy -> log_rps_Anchovy, 0, biomass_to_rpsA
-  biomass_Sardine -> log_rps_Sardine, 0, biomassS_to_rpsS
-  
-  ## Spawning effects 
-  tsa -> biomass_Anchovy, 0, tsa_to_biomassA
-  tsa -> biomass_Sardine, 0, tsa_to_biomassS
-  cap -> biomass_Anchovy, 0, cap_to_biomassA
-  cap -> biomass_Sardine, 0, cap_to_biomassS
-  agulhas_gradient -> biomass_Anchovy, 0, gradient_to_biomassA
-  agulhas_gradient -> biomass_Sardine, 0, gradient_to_biomassS
-
-  
-  
+  # ## Survival
+  # mdlgzp_SB -> log_rps_Anchovy, 0, largeZP_to_rpsA
+  # smallzp_SB -> log_rps_Sardine, 0, smallZP_to_rpsS
+  # copepodabund_SB -> log_rps_Anchovy, 0, copepodabund_to_rpsA
+  # chla_SB -> log_rps_Sardine, 0, chla_to_rpsS
+  # 
+  # ## Stock recruit
+  # biomass_Anchovy -> log_rps_Anchovy, 0, biomass_to_rpsA
+  # biomass_Sardine -> log_rps_Sardine, 0, biomassS_to_rpsS
+  # 
+  # ## Anchovy spawning effects 
+  # tsa -> biomass_Anchovy, 0, tsa_to_biomassA
+  # cap -> biomass_Anchovy, 0, cap_to_biomassA
+  # agulhas_gradient -> biomass_Anchovy, 0, gradient_to_biomassA
+  # 
+  # ## Removals
+  # anchovy_catches -> biomass_Anchovy, 0, catchesA_to_biomassA
+  # anchovy_catches -> biomass_Sardine, 0, catchesA_to_biomassS
+  # sardine_catches -> biomass_Sardine, 2, catchesS_to_biomassS
+  # 
   ## AR
-  upwelling_SB -> upwelling_SB, 1, AR1, 0.001
-  chla_SB -> chla_SB, 1,  AR2, 0.001
-  mdlgzp_SB -> mdlgzp_SB, 1, AR3, 0.001
-  smallzp_SB -> smallzp_SB, 1, AR4, 0.001
-  log_rps_Anchovy -> log_rps_Anchovy, 1, AR5, 0.001
-  log_rps_Sardine -> log_rps_Sardine, 1, AR6, 0.001
-  biomass_Anchovy ->  biomass_Anchovy, 1, AR7, 0.001
-  biomass_Sardine -> biomass_Sardine, 1, AR8, 0.001
-  cap -> cap, 1, AR9, 0.001
-  tsa -> tsa, 1, AR10, 0.001
-  copepodabund_SB -> copepodabund_SB, 1, AR11, 0.001
-  agulhas_gradient -> agulhas_gradient, 1, AR12, 0.001
+  # upwelling_SB -> upwelling_SB, 1, AR1, 0.001
+  # upwelling_AB -> upwelling_AB, 1, AR2, 0.001
+  # sst_SB -> sst_SB, 1, AR3, 0.001
+  # sst_AB -> sst_AB, 1, AR4, 0.001
+  
+  copepod_AB -> copepod_AB, 1, AR5, 0.001
+  calanus_AB -> calanus_AB, 1, AR6, 0.001
+  smcopepod_AB -> smcopepod_AB, 1, AR7, 0.001
+  
+  # chla_SB -> chla_SB, 1,  AR8, 0.001
+  # mdlgzp_SB -> mdlgzp_SB, 1, AR9, 0.001
+  # smallzp_SB -> smallzp_SB, 1, AR10, 0.001
+  # copepodabund_SB -> copepodabund_SB, 1, AR11, 0.001
+  
+  # log_rps_Anchovy -> log_rps_Anchovy, 1, AR5, 0.001
+  # log_rps_Sardine -> log_rps_Sardine, 1, AR6, 0.001
+  # biomass_Anchovy ->  biomass_Anchovy, 1, AR7, 0.001
+  # biomass_Sardine -> biomass_Sardine, 1, AR8, 0.001
+  # cap -> cap, 1, AR9, 0.001
+  # tsa -> tsa, 1, AR10, 0.001
+  # copepodabund_SB -> copepodabund_SB, 1, AR11, 0.001
+  # agulhas_gradient -> agulhas_gradient, 1, AR12, 0.001
 
   # anchovy_biomass_west -> anchovy_biomass_west, 1, AR9, 0.001
   # sardine_biomass_east -> sardine_biomass_east, 1, AR10, 0.001
@@ -703,11 +708,15 @@ sem_simple <- "
   # anchovy_catches -> anchovy_biomass_west, 1, catchesA_to_biomassWA  
   
 "
-sem_dat_simple <- sem_dat %>% 
-  select(year, upwelling_SB, cap, tsa, agulhas_gradient, chla_SB, mdlgzp_SB, smallzp_SB, copepodabund_SB,
+sem_dat_simple <- sem_dat_full %>% 
+  select(year, upwelling_SB, upwelling_AB, sst_AB, sst_SB, 
+         chla_SB, chla_AB,
+         # cap, tsa, agulhas_gradient, 
+         smcopepod_AB, calanus_AB, copepod_AB,
+         mdlgzp_SB, smallzp_SB, copepodabund_SB, accs_SB,
        log_rps_Anchovy, log_rps_Sardine, biomass_Anchovy, biomass_Sardine) %>% 
    filter(!if_all(-year, is.na)) %>% 
-  filter(year >= 1975) %>% 
+  filter(year >= 1979) %>%
   as.data.frame()
 
 rownames(sem_dat_simple) <- sem_dat_simple$year
@@ -719,12 +728,12 @@ fit_simple <- dsem( sem = sem_simple,
             tsdata = ts(sem_dat_simple),
             family =  rep('fixed', ncol(sem_dat_simple)),
             control = dsem_control(use_REML = TRUE, quiet=TRUE))
-ParHat_simple = fit_full$obj$env$parList()
+ParHat_simple = fit_simple$obj$env$parList()
 
 summary_simple <- summary(fit_simple) %>% 
   mutate(sig = cut(p_value, breaks = c(-Inf, 0.01, 0.05, 0.10, Inf), 
                    labels = c("***", "**", "*", "NS")))
-# AIC(fit_simple)
+AIC(fit_simple)
 
 # AIC(fit_full)
 # 1551.142
