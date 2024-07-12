@@ -210,7 +210,7 @@ upwelling_wide <- upwelling %>%
 
 ```{r pp_dat}
 pp_wide <- ltl_dat %>% 
-  select(year, chla_SB, chla_AB, pico_SB, pico_AB, nano_SB, nano_AB, micro_SB, micro_AB)
+  select(year, chla_SB, chla_AB, chlaship_AB, pico_SB, pico_AB, nano_SB, nano_AB, micro_SB, micro_AB)
 
 pp_dat <- ltl_dat %>% 
   select(year, chla_SB, chla_AB) %>% 
@@ -583,7 +583,7 @@ df_plot
 sem_dat_full <- sem_dat %>% 
   select(year, 
          upwelling_AB, upwelling_SB, tsa, cap, agulhas_gradient, sst_AB, sst_SB, ## environmental drivers
-         chla_SB, chla_AB, ## primary production
+         chla_SB, chla_AB, chlaship_AB,## primary production
          # pico_SB, pico_AB, nano_SB, nano_AB, micro_SB, micro_AB, ## phytoplankton size
          copepodabund_SB, accs_SB, mdlgzp_SB, smallzp_SB, copepod_AB, calanus_AB, smcopepod_AB, # zooplankton community     
          biomass_Anchovy, biomass_Sardine, log_rps_Anchovy, log_rps_Sardine,## fish
@@ -601,122 +601,59 @@ sem_simple <- "
   
   ## AB environment mediates primary production
   upwelling_AB -> chla_AB, 0, upwelling_to_ppAB
-  sst_AB -> chla_AB, 0, sst_to_ppAB
+  # sst_AB -> chla_AB, 0, sst_to_ppAB
 
   ## SB environment mediates primary production
-  upwelling_SB -> chla_SB, 0, upwelling_to_ppSB
-  sst_SB -> chla_SB, 0, sst_to_ppSB
+  # upwelling_SB -> chla_SB, 0, upwelling_to_ppSB
+  # sst_SB -> chla_SB, 0, sst_to_ppSB
 
   ## AB Trophic links between PP and zooplankton
-  chla_AB -> copepod_AB, 0, chla_to_copepodAB
   chla_AB -> calanus_AB, 0, chla_to_calanusAB
-  chla_AB -> smcopepod_AB, 0, chla_to_smallcopepodAB
-
+  chla_AB -> copepod_AB, 0, chla_to_copepodAB
+  # chla_AB -> smcopepod_AB, 0, chla_to_smallcopepodAB
+ 
   ## SB Trophic links between PP and zooplankton
   chla_SB -> mdlgzp_SB, 0, chla_to_largezpSB
-  chla_SB -> copepodabund_SB, 0, chla_to_copeopodabundSB
+  # chla_SB -> copepodabund_SB, 0, chla_to_copeopodabundSB
   chla_SB -> smallzp_SB, 0, chla_to_smallzpSB
-  chla_SB -> accs_SB, 0, chla_to_accsSB
+  # chla_SB -> accs_SB, 0, chla_to_accsSB
 
-  # ## Survival
-  # mdlgzp_SB -> log_rps_Anchovy, 0, largeZP_to_rpsA
-  # smallzp_SB -> log_rps_Sardine, 0, smallZP_to_rpsS
-  # copepodabund_SB -> log_rps_Anchovy, 0, copepodabund_to_rpsA
-  # chla_SB -> log_rps_Sardine, 0, chla_to_rpsS
-  # 
-  # ## Stock recruit
-  # biomass_Anchovy -> log_rps_Anchovy, 0, biomass_to_rpsA
-  # biomass_Sardine -> log_rps_Sardine, 0, biomassS_to_rpsS
-  # 
-  # ## Anchovy spawning effects 
-  # tsa -> biomass_Anchovy, 0, tsa_to_biomassA
-  # cap -> biomass_Anchovy, 0, cap_to_biomassA
-  # agulhas_gradient -> biomass_Anchovy, 0, gradient_to_biomassA
-  # 
-  # ## Removals
-  # anchovy_catches -> biomass_Anchovy, 0, catchesA_to_biomassA
-  # anchovy_catches -> biomass_Sardine, 0, catchesA_to_biomassS
-  # sardine_catches -> biomass_Sardine, 2, catchesS_to_biomassS
-  # 
-  ## AR
+  # ## AR
   # upwelling_SB -> upwelling_SB, 1, AR1, 0.001
-  # upwelling_AB -> upwelling_AB, 1, AR2, 0.001
+  upwelling_AB -> upwelling_AB, 1, AR2, 0.001
   # sst_SB -> sst_SB, 1, AR3, 0.001
   # sst_AB -> sst_AB, 1, AR4, 0.001
-  
-  copepod_AB -> copepod_AB, 1, AR5, 0.001
-  calanus_AB -> calanus_AB, 1, AR6, 0.001
-  smcopepod_AB -> smcopepod_AB, 1, AR7, 0.001
-  
-  # chla_SB -> chla_SB, 1,  AR8, 0.001
-  # mdlgzp_SB -> mdlgzp_SB, 1, AR9, 0.001
-  # smallzp_SB -> smallzp_SB, 1, AR10, 0.001
-  # copepodabund_SB -> copepodabund_SB, 1, AR11, 0.001
-  
-  # log_rps_Anchovy -> log_rps_Anchovy, 1, AR5, 0.001
-  # log_rps_Sardine -> log_rps_Sardine, 1, AR6, 0.001
-  # biomass_Anchovy ->  biomass_Anchovy, 1, AR7, 0.001
-  # biomass_Sardine -> biomass_Sardine, 1, AR8, 0.001
-  # cap -> cap, 1, AR9, 0.001
-  # tsa -> tsa, 1, AR10, 0.001
-  # copepodabund_SB -> copepodabund_SB, 1, AR11, 0.001
-  # agulhas_gradient -> agulhas_gradient, 1, AR12, 0.001
+   
+  chla_AB -> chla_AB, 1, AR5, 0.001
+  calanus_AB -> calanus_AB, 1, AR7, 0.001
+  # smcopepod_AB -> smcopepod_AB, 1, AR8, 0.001
+  copepod_AB -> copepod_AB, 1, AR9, 0.001
 
-  # anchovy_biomass_west -> anchovy_biomass_west, 1, AR9, 0.001
-  # sardine_biomass_east -> sardine_biomass_east, 1, AR10, 0.001
-  # anchovy_biomass_east -> anchovy_biomass_east, 1, AR11, 0.001
-  # anchovy_catches -> anchovy_catches, 1, AR12, 0.001
-  
-  
-  # upwelling_SB -> log_rps_Sardine, 0, upwelling_to_rpsS
-  # upwelling_SB -> log_rps_Anchovy, 0, upwelling_to_rpsA
-  
-  ## Spawner conditions/transport (Agulhas)
-  # cap -> log_rps_Sardine, 0, upwelling_to_rpsS
-  # upwelling_SB -> log_rps_Anchovy, 0, upwelling_to_rpsA
-  
-  
-  ## Sardine 
-  # macrozooplankton -> sardine_recruits, 1, zoopMacro_to_recruitsS
-  # mesozooplankton -> sardine_recruits, 1, zoopMeso_to_recruitsS
-  # microzooplankton -> sardine_recruits, 1, zoopMicro_to_recruitsS
-  
-  # tsa -> biomass_Sardine, 0, tsa_to_biomassS
-  # cap -> biomass_Sardine, 0, cap_to_biomassS
-  
-  # sardine_recruits -> sardine_biomass_east, 1, recruitsA_to_biomassES
-  # anchovy_catches -> sardine_biomass_east, 1, catchesA_to_biomassES
-  # sardine_catches -> sardine_biomass_east, 3, catchesS_to_biomassES
-  # sardine_recruits -> sardine_biomass_west, 1, recruitsA_to_biomassWS
-  # anchovy_catches -> sardine_biomass_west, 1, catchesA_to_biomassWS
-  # sardine_catches -> sardine_biomass_west, 3, catchesS_to_biomassWS
-  
-  ## Anchovy
-  # macrozooplankton -> anchovy_recruits, 1, zoopMacro_to_recruitsA
-  # mesozooplankton -> anchovy_recruits, 1, zoopMeso_to_recruitsA
-  # microzooplankton -> anchovy_recruits, 1, zoopMicro_to_recruitsA
-  
-  # tsa -> biomass_Anchovy, 0, tsa_to_biomassA
-  # tsa -> anchovy_biomass_east, 1, tsa_to_biomassEA
-  # cap -> biomass_Anchovy, 0, cap_to_biomassA
-  # cap -> sardine_biomass_east, 1, cap_to_biomassEA
-  # agulhas_gradient -> anchovy_biomass_east, 1, agulhas_to_biomassEA
-  
-  # anchovy_recruits -> anchovy_biomass_east, 1, recruitsA_to_biomassEA
-  # anchovy_catches -> anchovy_biomass_east, 1, catchesA_to_biomassEA  
-  # anchovy_recruits -> anchovy_biomass_west, 1, recruitsA_to_biomassWA
-  # anchovy_catches -> anchovy_biomass_west, 1, catchesA_to_biomassWA  
-  
+  chla_SB -> chla_SB, 1,  AR10, 0.001
+  mdlgzp_SB -> mdlgzp_SB, 1, AR11, 0.001
+  smallzp_SB -> smallzp_SB, 1, AR12, 0.001
+  # copepodabund_SB -> copepodabund_SB, 1, AR13, 0.001
+  # accs_SB -> accs_SB, 1, AR14, 0.001
+
+#### ---
 "
 sem_dat_simple <- sem_dat_full %>% 
-  select(year, upwelling_SB, upwelling_AB, sst_AB, sst_SB, 
+  select(year, upwelling_AB, 
+         # sst_AB,
          chla_SB, chla_AB,
-         # cap, tsa, agulhas_gradient, 
-         smcopepod_AB, calanus_AB, copepod_AB,
-         mdlgzp_SB, smallzp_SB, copepodabund_SB, accs_SB,
-       log_rps_Anchovy, log_rps_Sardine, biomass_Anchovy, biomass_Sardine) %>% 
+         # chlaship_AB,
+         # upwelling_SB, sst_SB,
+         # cap, tsa, agulhas_gradient,
+         # copepodabund_SB,
+         # accs_SB,
+         # smcopepod_AB,
+         calanus_AB,
+         copepod_AB,
+         mdlgzp_SB, smallzp_SB,
+       # log_rps_Anchovy, log_rps_Sardine, biomass_Anchovy, biomass_Sardine
+       ) %>% 
    filter(!if_all(-year, is.na)) %>% 
-  filter(year >= 1979) %>%
+  filter(year >= 1985) %>%
   as.data.frame()
 
 rownames(sem_dat_simple) <- sem_dat_simple$year
@@ -747,6 +684,7 @@ AIC(fit_simple)
 ```{r dsem_full_dag, fig.height = 12, fig.width = 15}
 
 lags_simple <- unique(as.numeric(summary(fit_simple)$lag))
+i = 0
 for(i in lags_simple){
   
   p1_simple <- NULL
@@ -816,6 +754,200 @@ ts_plot_simple
 ```
 
 
+
+```{r sem_fish}
+# colnames(sem_dat)
+sem_dat_full <- sem_dat %>% 
+  select(year, 
+         upwelling_AB, upwelling_SB, tsa, cap, agulhas_gradient, sst_AB, sst_SB, ## environmental drivers
+         chla_SB, chla_AB, chlaship_AB,## primary production
+         # pico_SB, pico_AB, nano_SB, nano_AB, micro_SB, micro_AB, ## phytoplankton size
+         copepodabund_SB, accs_SB, mdlgzp_SB, smallzp_SB, copepod_AB, calanus_AB, smcopepod_AB, # zooplankton community     
+         biomass_Anchovy, biomass_Sardine, log_rps_Anchovy, log_rps_Sardine,## fish
+         anchovy_catches, sardine_catches) %>% ## removals
+  as.data.frame()
+
+
+## guidance from ??make_dsem_ram()
+### X -> Y, 1, XtoY indicates that X in time T affects Y in time T+1)
+### X -> Y, 0, XtoY indicates X affects Y simultaneously (lag=0) 
+
+# Specify model
+sem_fish <- "
+  # Link, lag, param_name (NA = off), fixed value (optional, 1 if param is off)
+  
+  ## AB environment mediates primary production
+  upwelling_AB -> chla_AB, 0, upwelling_to_ppAB
+  sst_AB -> chla_AB, 0, sst_to_ppAB
+
+  ## SB environment mediates primary production
+  upwelling_SB -> chla_SB, 0, upwelling_to_ppSB
+  sst_SB -> chla_SB, 0, sst_to_ppSB
+
+  ## AB Trophic links between PP and zooplankton
+  # chla_AB -> copepod_AB, 0, chla_to_copepodAB
+  chla_AB -> calanus_AB, 0, chla_to_calanusAB
+  chla_AB -> smcopepod_AB, 0, chla_to_smallcopepodAB
+ 
+  ## SB Trophic links between PP and zooplankton
+  chla_SB -> mdlgzp_SB, 0, chla_to_largezpSB
+  # chla_SB -> copepodabund_SB, 0, chla_to_copeopodabundSB
+  chla_SB -> smallzp_SB, 0, chla_to_smallzpSB
+  # chla_SB -> accs_SB, 0, chla_to_accsSB
+
+  ## SB Trophic links between zoop and small pelagics
+  mdlgzp_SB -> log_rps_Anchovy, 0, zoop_to_survivalA
+  smallzp_SB -> log_rps_Sardine, 0, zoop_to_survivalS
+  
+  # tsa -> log_rps_Anchovy, 0, tsa_to_survivalA
+  # cap -> log_rps_Anchovy, 0, cap_to_survivalA
+  # agulhas_gradient -> log_rps_Anchovy, 0, agulhasGrad_to_survivalA
+  
+  ## AB trophic links between zoop and small pelagics
+  # copepod_AB -> biomass_Anchovy, 0, copepod_to_biomassA
+  calanus_AB -> biomass_Anchovy, 0, calanus_to_biomassA
+  chla_AB -> biomass_Sardine, 0, chlaAB_to_biomassS
+  chla_SB -> biomass_Sardine, 0, chlaSB_to_biomassS
+  smcopepod_AB -> biomass_Sardine, 0, smcopepodAB_to_biomassS
+
+  ## Stock-recruit relationship
+  biomass_Anchovy -> log_rps_Anchovy, 0, biomassA_to_rpsA
+  biomass_Sardine -> log_rps_Sardine, 0, biomasss_to_rpsS
+  catches_Anchovy -> biomass_Anchovy, 0, catchesA_to_biomassA
+  catches_Anchovy -> biomass_Sardine, 0, bycatchesA_to_biomassS
+  catches_Sardine -> biomass_Sardine, 2, catchesS_to_biomassS
+
+  ## AR
+  upwelling_SB -> upwelling_SB, 1, AR1, 0.001
+  upwelling_AB -> upwelling_AB, 1, AR2, 0.001
+  sst_SB -> sst_SB, 1, AR3, 0.001
+  sst_AB -> sst_AB, 1, AR4, 0.001
+   
+  chla_AB -> chla_AB, 1, AR5, 0.001
+  calanus_AB -> calanus_AB, 1, AR7, 0.001
+  smcopepod_AB -> smcopepod_AB, 1, AR8, 0.001
+  # copepod_AB -> copepod_AB, 1, AR9, 0.001
+
+  chla_SB -> chla_SB, 1,  AR10, 0.001
+  mdlgzp_SB -> mdlgzp_SB, 1, AR11, 0.001
+  smallzp_SB -> smallzp_SB, 1, AR12, 0.001
+  # copepodabund_SB -> copepodabund_SB, 1, AR13, 0.001
+  # accs_SB -> accs_SB, 1, AR14, 0.001
+  
+  biomass_Anchovy -> biomass_Anchovy, 1, AR15, 0.001 
+  biomass_Sardine -> biomass_Sardine, 1, AR16, 0.001 
+  log_rps_Anchovy -> log_rps_Anchovy, 1, AR17, 0.001
+  log_rps_Sardine -> log_rps_Sardine, 1, AR18, 0.001
+  catches_Sardine -> catches_Sardine, 1, AR19, 0.001
+  catches_Anchovy -> catches_Anchovy, 1, AR20, 0.001
+  # cap -> cap, 1, AR21, 0.001
+  # tsa -> tsa, 1, AR22, 0.001
+  # agulhas_gradient -> agulhas_gradient, 1, AR23, 0.001
+
+#### ---
+"
+sem_dat_fish <- sem_dat_full %>% 
+  select(year, upwelling_AB, 
+         sst_AB,
+         chla_SB, chla_AB,
+         # chlaship_AB,
+         upwelling_SB, sst_SB,
+         # cap, tsa, agulhas_gradient,
+         # copepodabund_SB,
+         # accs_SB,
+         smcopepod_AB,
+         calanus_AB,
+         # copepod_AB,
+         mdlgzp_SB, smallzp_SB,
+         log_rps_Anchovy, log_rps_Sardine, biomass_Anchovy, biomass_Sardine,
+         catches_Anchovy = anchovy_catches, catches_Sardine = sardine_catches
+  ) %>% 
+  filter(!if_all(-year, is.na)) %>% 
+  # filter(year >= 1979) %>%
+  as.data.frame()
+
+rownames(sem_dat_fish) <- sem_dat_fish$year
+sem_dat_fish <- sem_dat_fish[,-1]
+
+
+# Fit dsem
+fit_fish <- dsem( sem = sem_fish,
+                  tsdata = ts(sem_dat_fish),
+                  family =  rep('fixed', ncol(sem_dat_fish)),
+                  control = dsem_control(use_REML = TRUE, quiet=TRUE))
+ParHat_fish = fit_fish$obj$env$parList()
+
+summary_fish <- summary(fit_fish) %>% 
+  mutate(sig = cut(p_value, breaks = c(-Inf, 0.01, 0.05, 0.10, Inf), 
+                   labels = c("***", "**", "*", "NS")))
+AIC(fit_fish)
+
+
+
+for(i in c(0,2)){
+  p1_fish <- NULL
+  p2_fish <- NULL
+  
+  p1_fish <- plot( (as_fitted_DAG(fit_fish, lag = i)), edge_width = 1, type="width",
+                   text_size = 4, show.legend = FALSE, box_x = 12) +
+    scale_x_continuous(expand = c(0.05, 0.05)) +
+    labs(title = sprintf("lag %s effects", i)) +
+    NULL
+  
+  p1_fish <- ggplot_build(p1_fish)
+  p1_fish$data[[1]]$edge_width <- 1
+  
+  
+  p2_fish <- plot( (as_fitted_DAG(fit_fish, what="p_value", lag = i)), #edge_width = 2, 
+                   type = "width",
+                   text_size = 4, show.legend = FALSE, colors=c('black', 'black'), 
+                   box_x = 12) +
+    scale_x_continuous(expand = c(0.05, 0.05)) +
+    labs(title = sprintf("Two-sided p-value (lag %s)", i)) +
+    NULL
+  
+  
+  p2_fish <- ggplot_build(p2_fish)
+  p2_fish$data[[1]]$edge_width <- 1
+  
+  print(wrap_ggplot_grob(ggplot_gtable(p1_fish))/wrap_ggplot_grob(ggplot_gtable(p2_fish)))
+}
+
+
+
+# Timeseries plot
+raw_dat_fish <- data.frame(year = rownames(sem_dat_fish), 
+                         sem_dat_fish) %>% 
+  pivot_longer(!year, names_to = "var", values_to = "value")
+
+pred_model_fish <- data.frame(year = rownames(sem_dat_fish), 
+                         ParHat_fish$x_tj) %>% 
+  pivot_longer(!year, names_to = "var", values_to = "predicted")
+
+pred_sd_fish <- data.frame(year = rownames(sem_dat_fish),
+                      as.list(fit_fish$sdrep,what="Std.")$x_tj) %>% 
+  pivot_longer(!year, names_to = "var", values_to = "SD")
+
+pred_all_fish <- raw_dat_fish %>% 
+  left_join(pred_model_fish, by = join_by(year, var)) %>% 
+  left_join(pred_sd_fish, by = join_by(year, var)) %>% 
+  mutate(lower = predicted - ifelse(is.na(SD), 0, SD),
+         upper = predicted + ifelse(is.na(SD), 0, SD),
+         year = as.numeric(year)) 
+
+ts_plot_fish <- ggplot(pred_all_fish, aes(x = year, y = predicted, ymin = lower, ymax = upper, group = var)) +
+  geom_path() +
+  geom_ribbon(alpha = 0.2, color = "blue", fill = "blue") +
+  geom_point(aes(x = year, y = value)) +
+  facet_wrap(~var) +
+  scale_x_continuous(limits = c(1979, 2020), breaks = seq(1965, 2020, 5)) +
+  theme_minimal() +
+  labs(x = "", y = "",
+       title = "Estimated values",
+       subtitle = "measurements (black dots), predicted values (blue lines), and 95% predictive intervals (\u00B11.96 SE)") +
+  NULL
+ts_plot_fish
+```
 
 # Discussion ---
 
