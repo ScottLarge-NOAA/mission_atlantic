@@ -638,7 +638,7 @@ saveRDS(cal_tab, "data/calendar_table.rds")
 ## Agulhas bank (Huggett et al 2023)
 agulhas_dat <- readxl::read_xlsx("data/Huggett_et_al_Timeseries_AB.xlsx") %>% 
   filter(area == "ALL") %>%
-  select(year, sst_AB = tempsurf, #chla_AB = fluosurf,
+  select(year, sst_AB = tempsurf, chlaship_AB = fluosurf,
          copepod_AB = total_mgC_m2, 
          calanus_AB = Cal_mgC_m2, SmCal_mgC_m2, Oithona_mgC_m2, Oncaea_mgC_m2) %>% 
   mutate(smcopepod_AB = rowSums(select(., contains("mgC_m2"))))
