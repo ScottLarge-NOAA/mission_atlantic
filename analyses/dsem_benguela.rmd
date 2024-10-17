@@ -2,17 +2,19 @@
 title: "Causal model of S. Benguela"
 author: "Scott Large"
 output: 
-  html_document:
+  bookdown::html_document2:
     code_folding: hide
-date: "2024-06-19"
+    number_sections: false
+date: "`r format(Sys.time(), '%d %B, %Y')`"
 editor_options: 
   chunk_output_type: console
+bibliography: references.bib
+reference-section-title: References
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, fig.width=12)
 ```
-
 
 ```{r load_dat, message = FALSE, warning=FALSE}
 library(dplyr)
@@ -21,8 +23,12 @@ library(ggplot2)
 library(patchwork)
 library(lubridate)
 
+# if (!require("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+# BiocManager::install("graph")
+# devtools::install_github( "James-Thorson-NOAA/dsem@dev", force=TRUE )
+
 # install.packages("dsem")
-library(dsem) ## 1.2.1
+library(dsem) ## 1.3.0
 library(phylopath)
 
 all_dat <- readRDS(here::here("data/all_dat.rds"))
@@ -60,44 +66,6 @@ ltl_dat <- readRDS(here::here("data/ltl_dat.rds"))
 
 summer_sst <- readRDS(here::here("data/summer_sst.rds"))
 ```
-
-# Introduction ---
-
-* Ecosystems are comprised of many interacting processes. Causal models help to identify the magnitude and direction of direct and indirect effects between interacting variables. Disentangle multiple drivers of ecosystem change
-* IEA as tool for confronting trade-offs between multiple EBFM objectives 
-* Southern Benguela is an important and dynamic system
-    + Environmental drivers:
-        + Thermal spawning area - Richardson
-            *  Larval anchovy foraging conditions seem to be optimal in 16-19°C water (plankton production and the consistency of copepod biomass). A positive linear relationship has been found between egg abundance and the area of 16–19°C water over the western Agulhas Bank
-        + Cape Agulhas Pressure - Agenbag
-            * the Agulhas Bank (AB; Figure 1) is ecologically and economically important since it comprises the major spawning grounds for numerous fish species which recruit to the west coast (Hutchings et al., 2009; Kirkman et al., 2016).
-            * Efficient transport between the spawning grounds and the nursery area (Agenbag J.J. (1996). Increased wind velocity (high CAP index) over the anchovy transport area (Cape Point to Cape Columbine) is likely to result in improved transport.Hence it is thought that a high CAP anomaly for September–December should result in more efficient transport to the productive nursery grounds.
-            * Decadal signal in atmospheric pressure (Roy et al 2007) seen in NCEP/NCAR reanalysis data (see pressure plot)
-        + Upwelling
-            * Increased wind that drives upwelling also increases surface water advection offshore, which may decrease survival of early life history stages of small pelagic species during their transport from spawning grounds to the west coast nursery area (Augustin 2017).
-            * van der Lingen et al (2006) hypothesized that larger zooplankton are be more abundant when upwelling is stronger and smaller zooplankton more abundant when upwelling is weaker (van der Lingen et al., 2006), which could suggest that sardine diet is negatively influenced by upwelling.
-        + Phytoplankton
-            * wind-driven upwelling at discrete upwelling centers in the southern Benguela is strongly pulsed and shows greater seasonal differences, with a narrow band of high plankton productivity in the southern part, restricted to the narrow coastal zone by warm Agulhas water offshore forming a front.
-            * Close relationship is to be expected between primary production and upwelling of nutrient-rich water over short time scales, it is generally assumed that long-term shifts in upwelling-favourable winds will lead to changes in upwelling and, consequently, to changes in phytoplankton production and biomass on similar scales (Hampton, 2012). However, patterns observed from in situ and satellite data provide no clear indications to suggest that such a straight-forward link between primary production and upwelling variability occurs in the Benguela, but there is evidence of substantial interannual and decade-scale changes in both phytoplankton production and upwelling at a number of times and locations in both the northern and southern Benguela sub-systems.
-(Verheye et al 2016) 
-        + Zooplankton
-        + Small Pelagic dynamics
-    + Fishing
-        + Small pelagic directed and bycatch
-* Here, based on conceptual models developed through the ODEMM/IEA process, we develop a novel causal model to explore how fishing and the environment influence ecosystem indicators
-
-# Methods ---
-
-## Model area
-* *TODO* Create map with the relevant spots identified
-
-## Data ---
-**(see supplement below for more figures)**
-
-* SST
-    + Anchovy thermal spawning suitability area (Richardson et al., 1998) 
-    + Standardized Cape Agulhas Pressure (CAP) anomaly. (Agenbag 1996) and Roy (2007)
-    + tempsurf - Mean sea temperature (°C) near the surface (5 m depth) (Huggett 2023)
 
 ```{r remote_data}
 ag_plot <- ggplot(agulhas_gradient, aes(x = date, y = sst_gradient))+
@@ -141,9 +109,9 @@ tsa_plot <- ggplot(tsa, aes(x = year, y = proportion)) +
   geom_path() +
   geom_point() +
   theme_minimal() +
-    labs(x = "", y = "",
-         title = "Thermal Spawning Area index",
-         subtitle = "proportion of Agulhas Bank SST within 16–19°C during September and October") +
+  labs(x = "", y = "",
+       title = "Thermal Spawning Area index",
+       subtitle = "proportion of Agulhas Bank SST within 16–19°C during September and October") +
   NULL
 # tsa_plot
 
@@ -154,15 +122,14 @@ sst_plot <- ggplot(summer_sst, aes(x = year, y = mean, color = variable)) +
   geom_path() +
   geom_point() +
   theme_minimal() +
-    labs(x = "", y = "",
-         title = "Mean temperature (°C)",
-         subtitle = "December-February OISST") +
+  labs(x = "", y = "",
+       title = "Mean temperature (°C)",
+       subtitle = "December-February OISST") +
   NULL
 # sst_plot
 
 ```
-* Upwelling 
-    + From Lamont et al 2018. Cumulative coastal South Benguela and Agulhas Bank upwelling from December to March
+
 ```{r, upwelling_dat}
 
 # upwelling_month <- upwelling %>% 
@@ -199,14 +166,6 @@ upwelling_wide <- upwelling %>%
   pivot_wider(names_from = variable, values_from = value)
 
 ```
-* Primary Production
-    + Southern Benguela - 
-        * summer mean chlorophyll a (mg/m3)
-        * summer mean fractional contribution of microphytoplankton, nanophytoplankton, and picophytoplankton
-    + Agulhas Bank - 
-        * summer mean chlorophyll a (mg/m3)
-        * summer mean fractional contribution of microphytoplankton, nanophytoplankton, and picophytoplankton
-        * fluosurf - *in situ* Autumn mean chlorophyll a (mg m-3) near the surface (5 m depth)
 
 ```{r pp_dat}
 pp_wide <- ltl_dat %>% 
@@ -249,18 +208,10 @@ pp_size_plot <- ggplot(pp_size, aes(x = year, y = value, color = name)) +
   NULL
 # pp_size_plot
 ```
-* Zooplankton
-    + Southern Benguela - 
-        * Zooplankton samples collected in St Helena Bay between 1951 and 1996, specifically during austral autumn (April-June), when peak recruitment of anchovy and sardine occurs, were analysed in terms of abundance, species and size composition of the copepod community following a standard, quantitative protocol (see Verheye et al., 1998).
-    + Agulhas Bank - 
-        * total_mgC_m2 - Mean integrated total copepod biomass (mg C m-2) in the upper 200 m of the water column
-        * Cal_mgC_m2 - Mean integrated biomass (mg C m-2) of Calanus agulhensis (all stages) in the upper 200 m of the water column
-        * SmCal_mgC_m2 - Mean integrated biomass (mg C m-2) of small calanoid copepods (mainly Paracalanidae and Clausocalanidae) in the upper 200 m of the water column
-        * Oithona_mgC_m2 - Mean integrated biomass (mg C m-2) of Oithonidae in the upper 200 m of the water column
-        * Oncaea_mgC_m2 - Mean integrated biomass (mg C m-2) of Oncaeidae in the upper 200 m of the water column
-```{r zoop_data}
+
+```{r zoop_dat}
 zoop_wide <- ltl_dat %>% 
-   select(year, copepodabund_SB,accs_SB, mdlgzp_SB, smallzp_SB, copepod_AB, calanus_AB, smcopepod_AB)
+  select(year, copepodabund_SB,accs_SB, mdlgzp_SB, smallzp_SB, copepod_AB, calanus_AB, smcopepod_AB)
 
 
 zoop_dat <- ltl_dat %>% 
@@ -275,17 +226,17 @@ zoop_sb <- zoop_dat %>%
                           name == "copepodabund" ~ "copepod_all",
                           TRUE ~ name),
          unit = factor(case_when(grepl("zoop", name) ~ "biomass",
-                          grepl("cope", name) ~ "abundance",
-                          grepl("accs", name) ~ "accs",
-                          TRUE ~ NA_character_), levels = c("biomass", "abundance", "accs"), 
+                                 grepl("cope", name) ~ "abundance",
+                                 grepl("accs", name) ~ "accs",
+                                 TRUE ~ NA_character_), levels = c("biomass", "abundance", "accs"), 
                        labels = c("biomass~anomaly", bquote("copepod abundance"~log(~n~m^-2~+~1)), 
-                                                            "ACCS~index~(mm)")))
+                                  "ACCS~index~(mm)")))
 
 zoop_sb_plot <- ggplot(zoop_sb, aes(x = year, y = value, color = name)) +
   facet_wrap(~unit, scale = "free_y", ncol = 1, labeller = label_parsed) +
-  geom_line() +
+  geom_path() +
   geom_point() + 
-    scale_x_continuous(limits = c(1950, 2020), breaks = seq(1950, 2020, 10)) +
+  scale_x_continuous(limits = c(1950, 2020), breaks = seq(1950, 2020, 10)) +
   labs(x = "", y = "", color = "",
        title = "Zooplankton indicators",
        subtitle = "Southern Benguela") +
@@ -301,7 +252,7 @@ zoop_ab <- zoop_dat %>%
 zoop_ab_plot <- ggplot(zoop_ab, aes(x = year, y = value, color = name)) +
   geom_path() +
   geom_point() + 
-    scale_x_continuous(limits = c(1950, 2020), breaks = seq(1950, 2020, 10)) +
+  scale_x_continuous(limits = c(1950, 2020), breaks = seq(1950, 2020, 10)) +
   labs(x = "", y = "", color = "",
        title = bquote("Mean integrated zooplankton biomass"~(mg~C~m^-2)),
        subtitle = "Agulhas Bank") +
@@ -310,42 +261,39 @@ zoop_ab_plot <- ggplot(zoop_ab, aes(x = year, y = value, color = name)) +
   NULL
 # zoop_ab_plot
 ```
-* Small pelagic population dynamics
-    + Recruitment surveys occur between April and June
-    + Biomass surveys occur between October and November
-    + log(S/R) 
+
 ```{r recruits, warning=FALSE, message=FALSE}
 
-rec1 <- ggplot(recruitment, aes(x = year, y = value, group = species, color = species)) +
-  geom_path() +
-  scale_x_continuous(limits = c(1979, 2021), breaks = seq(1965, 2020, 5)) +
-    scale_color_brewer(palette = "Set2") +
-  labs(x = "",
-       y = "",
-       title = "small pelagic recruitment",
-       subtitle = "autumn/winter (May/June) acoustic survey (billions)") +
-  theme_minimal() +
-  theme(legend.position = "bottom") +
-  NULL
-# rec1
+    rec1 <- ggplot(recruitment, aes(x = year, y = value, group = species, color = species)) +
+      geom_path() +
+      scale_x_continuous(limits = c(1979, 2021), breaks = seq(1965, 2020, 5)) +
+        scale_color_brewer(palette = "Set2") +
+      labs(x = "",
+           y = "",
+           title = "small pelagic recruitment",
+           subtitle = "autumn/winter (May/June) acoustic survey (billions)") +
+      theme_minimal() +
+      theme(legend.position = "bottom") +
+      NULL
+    # rec1
 ```
+
 ```{r biomass, warning=FALSE, message=FALSE}
 
-bio1 <- ggplot(biomass, aes(x = year, y = value, group = species, color = species)) +
-  facet_wrap(~ factor(area, levels = c("east", "west", "total")), ncol = 1) +
-  geom_path() +
-  scale_color_brewer(palette = "Set2") +
-  scale_x_continuous(limits = c(1979, 2020), breaks = seq(1965, 2020, 5)) +
-  labs(x = "",
-       y = "",
-       title = "small pelagic spawner biomass",
-       subtitle = "spring/summer (October/November) acoustic survey (million tonnes)") +
-  theme_minimal() +
-  theme(legend.position = "bottom") +
-  NULL
+    bio1 <- ggplot(biomass, aes(x = year, y = value, group = species, color = species)) +
+      facet_wrap(~ factor(area, levels = c("east", "west", "total")), ncol = 1) +
+      geom_path() +
+      scale_color_brewer(palette = "Set2") +
+      scale_x_continuous(limits = c(1979, 2020), breaks = seq(1965, 2020, 5)) +
+      labs(x = "",
+           y = "",
+           title = "small pelagic spawner biomass",
+           subtitle = "spring/summer (October/November) acoustic survey (million tonnes)") +
+      theme_minimal() +
+      theme(legend.position = "bottom") +
+      NULL
 
 ```
-
 
 ```{r logspr, warning=FALSE, message=FALSE}
 logrps <- biomass %>% 
@@ -381,9 +329,6 @@ rps_wide <- logrps %>%
   pivot_wider(names_from = species, values_from = c(biomass, log_rps))
 ```
 
-* Fishing
-    + Small pelagic catches occur throughout the year (see supplemental . 
-    
 ```{r pel_catch, warning=FALSE, message=FALSE}
 
 sp_plot <- ggplot(catches, aes(x = year, y = value/1000, group = species, fill = species, color = species)) +
@@ -397,7 +342,6 @@ sp_plot <- ggplot(catches, aes(x = year, y = value/1000, group = species, fill =
   NULL
 
 ```
-
 
 ```{r sardine_month, fig.width=12}
 
@@ -424,6 +368,7 @@ sard1 <- ggplot(sardine_d, aes(x = month, y = year, height = value, group = year
         axis.text.x = element_text(angle = 45, vjust = .5)) +
   NULL
 ```
+
 ```{r anchovy_month}
 
 anchovy_d <- catches_m %>% 
@@ -446,10 +391,11 @@ anch1 <- ggplot(anchovy_d, aes(x = month, y = year, height = value, group = year
   NULL
 
 ```
+
 ```{r calendar_table}
 month_ord <- month.name[c(7:12, 1:6)]
-paste("'", cal_tab$process, "'", collapse = ", ", sep =)
-process_ord <- c('Upwelling (SB)', 'Upwelling (AB)', 'Sea-surface temperature (AB)', 
+# paste("'", cal_tab$process, "'", collapse = ", ", sep =)
+process_ord <- c('Upwelling (SB)', 'Upwelling (AB)', 'Sea-surface temperature (AB)', 'Sea-surface temperature (SB)', 
                  'Thermal spawning area (AB)', 'Cross-shelf Temperature gradient (AB)', 'Cape Agulhas Pressure (AB)', 
                  'Chl a concentration (AB)', 'Chl a concentration (SB)', 'Zooplankton biomass (AB)', 
                  'Zooplankton abundance (SB)', 'Zooplankton composition (SB)', 'Sardine recruitment survey (SB)',
@@ -487,7 +433,90 @@ timeline_plot <- ggplot() +
 # timeline_plot
 ```
 
-* These data are aggregated according to their temporal occurrence
+# Introduction ---
+
+-   Ecosystems are comprised of many interacting processes.
+-   Causal models help to identify the magnitude and direction of direct and indirect effects between interacting variables (find a few citations within [@thorson2024]).
+-   Identifying meaningful indicators is important for EBFM [@rice2005].
+-   IEA as tool for confronting trade-offs between multiple EBFM objectives [@levin2009].
+-   Here we aim to disentangle multiple drivers of ecosystem change to evaluate indicators for potential use within an IEA framework.
+-   Southern Benguela is an important and dynamic system
+    -   Environmental drivers:
+        -   Thermal spawning area (TSA )
+            -   Larval anchovy foraging conditions seem to be optimal in 16-19°C water (plankton production and the consistency of copepod biomass). A positive linear relationship has been found between egg abundance and the area of 16--19°C water over the western Agulhas Bank [@richardson1998].
+        -   Cape Agulhas Pressure (CAP index, see Figure \@ref(fig:ag-plot) )
+            -   The Agulhas Bank (AB) is ecologically and economically important since it comprises the major spawning grounds for numerous fish species which recruit to the west coast ([@hutchings2009, @kirkman2016]).
+            -   Efficient transport between the spawning grounds and the nursery area ([@agenbag1996]). Increased wind velocity (high CAP index) over the anchovy transport area (Cape Point to Cape Columbine) is likely to result in improved transport. A high CAP anomaly for September--December should result in more efficient transport to the productive nursery grounds.
+            -   Decadal signal in atmospheric pressure (@roy2007) seen in NCEP/NCAR reanalysis data
+        -   Upwelling - @vanderlingen2006
+            -   Increased wind that drives upwelling also increases surface water advection offshore, which may decrease survival of early life history stages of small pelagic species during their transport from spawning grounds to the west coast nursery area ([@augustyn2017]).
+            -   @vanderlingen2006 hypothesized that larger zooplankton are be more abundant when upwelling is stronger and smaller zooplankton more abundant when upwelling is weaker, which could suggest that sardine diet is negatively influenced by upwelling.
+        -   Phytoplankton
+            -   wind-driven upwelling at discrete upwelling centers in the southern Benguela is strongly pulsed and shows greater seasonal differences, with a narrow band of high plankton productivity in the southern part, restricted to the narrow coastal zone by warm Agulhas water offshore forming a front.
+            -   Close relationship is to be expected between primary production and upwelling of nutrient-rich water over short time scales, it is generally assumed that long-term shifts in upwelling-favourable winds will lead to changes in upwelling and, consequently, to changes in phytoplankton production and biomass on similar scales (Hampton, 2012). However, patterns observed from in situ and satellite data provide no clear indications to suggest that such a straight-forward link between primary production and upwelling variability occurs in the Benguela, but there is evidence of substantial interannual and decade-scale changes in both phytoplankton production and upwelling at a number of times and locations in both the northern and southern Benguela sub-systems. (Verheye et al 2016)
+        -   Zooplankton
+        -   Small Pelagic dynamics
+    -   Fishing
+        -   Small pelagic directed and bycatch
+-   Here, based on conceptual models developed through the ODEMM/IEA process, we develop a novel causal model to explore how the environment influences ecosystem indicators
+
+# Methods ---
+
+## Model area
+
+-   *TODO* Create map with the relevant spots identified (Figure 1)
+
+## Data ---
+
+**(see supplement below for more figures)**
+
+-   SST
+
+    -   Anchovy thermal spawning suitability area (TSA; Richardson et al., 1998)
+    -   Standardized Cape Agulhas Pressure anomaly (CAP; Agenbag 1996) and Roy (2007)
+    -   Mean sea temperature (°C) near the surface (5 m depth) (tempsurf; Huggett 2023)
+
+-   Upwelling
+
+    -   Cumulative coastal South Benguela and Agulhas Bank upwelling from December to March (upwelling_SB and upwelling_AB; Lamont et al 2018)
+
+-   Primary Production
+
+    -   Southern Benguela -
+        -   Mean chlorophyll a (mg m^-3^) from December to February (chla_SB; Lamont et al 2019)
+        -   Mean fractional contribution of microphytoplankton (micro_SB), nanophytoplankton (nano_SB), and picophytoplankton (pico_SB) from December to February (Lamont et al 2019)
+    -   Agulhas Bank -
+        -   Mean chlorophyll a (mg m^-3^) from December to February (Lamont et al 2019)
+        -   Mean fractional contribution of microphytoplankton (micro_AB), nanophytoplankton (nano_AB), and picophytoplankton (pico_AB) from December to February (chla_AB; Lamont et al 2019)
+        -   *in situ* Mean chlorophyll a (mg m^-3^) near the surface (5 m depth) from March to May (fluosurf; Huggett 2023)
+
+-   Zooplankton
+
+    -   Southern Benguela - <!-- * Zooplankton samples collected in St. Helena Bay between 1951 and 1996, specifically during austral autumn (April-June), when peak recruitment of anchovy and sardine occurs, were analysed in terms of abundance, species and size composition of the copepod community following a standard, quantitative protocol (see Verheye et al., 1998). -->
+
+        -   zooplankton biomass anomaly by species and size composition from November and December (small zooplankton = smallzp_SB, medium and large copepods = mdlgzp_SB; Huggett 2009), copepod abundance (log(n m\^-2 +1); Verheye et al., 2016), and Average Copepod Community Size index (ACCS; Verheye et al., 2016)
+
+    -   Agulhas Bank -
+
+        -   Mean integrated total copepod biomass (mg C m^-2^) in the upper 200 m of the water column (total_mgC_m2; Hugget et al 2023)
+        -   Mean integrated biomass (mg C m^-2^) of *Calanus agulhensis* (all stages) in the upper 200 m of the water column (Cal_mgC_m2; Hugget et al 2023)
+        -   Mean integrated biomass (mg C m^-2^) of small calanoid copepods (mainly Paracalanidae and Clausocalanidae) in the upper 200 m of the water column (SmCal_mgC_m2; Hugget et al 2023)
+        -   Mean integrated biomass (mg C m^-2^) of Oithonidae in the upper 200 m of the water column (Oithona_mgC_m2; Hugget et al 2023)
+        -   Mean integrated biomass (mg C m^-2^) of Oncaeidae in the upper 200 m of the water column (Oncaea_mgC_m2; Hugget et al 2023)
+
+-   Small pelagic population dynamics
+
+    -   Recruitment surveys occur between April and June
+        -   Sardine recruits (FISHERIES/2021/JUL/SWG-PEL/51 Table 2)
+        -   Anchovy recruits (FISHERIES/2021/JUL/SWG-PEL/51 Table 2)
+    -   Biomass surveys occur between October and November
+        -   Sardine biomass (FISHERIES/2020/DEC/SWG-PEL/130rev2 Table 2)
+        -   Anchovy biomass (FISHERIES/2020/DEC/SWG-PEL/130rev2 Table 2)
+    -   log(R/S)
+
+-   Fishing
+
+    -   Small pelagic catches occur throughout the year
 
 ```{r dsem_data, warning=FALSE, message=FALSE}
 
@@ -523,60 +552,85 @@ zplot <- ggplot(sem_dat_long, aes(x = year, y = val, group = var, color = var)) 
   theme(legend.position = "bottom") +
   NULL
 
-# zplot
+zplot
 
-# timeline_plot
+timeline_plot
+```
+
+```{r ag-plot2, include=TRUE, fig.cap = "test"}
+
+ag_plot
+# pres_plot
+# cap_plot
+# tsa_plot
+# # bni_m / bni_s
+# up_summer
+# pp_plot
+# zoop_ab_plot
+# zoop_sb_plot
+# rec1
+# bio1
+# sp_plot
+# sard1
+# anch1
 ```
 
 ## Causal modeling ---
-* Initial conceptual model is taken from ODEMM/IEA process (Skein et al 2022 and Bornman et al 2024)
-* Dynamic Structural Equation Model (Thorson et al 2024)
 
+<!-- * Initial conceptual model is taken from ODEMM/IEA process (Skein et al 2022 and Bornman et al 2024) -->
+
+-   Dynamic Structural Equation Model (Thorson et al 2024)
 
 # Results ---
 
-* Simultaneous effects
-    + Upwelling has a significant positive relationship with large phytoplankton and a negative relationship with small phytoplankton.
-    + Large and small phytoplankton have significant positive relationships with all zooplankton size classes, but the largest effect size is between large phytoplankton and macrozooplankton and small phytoplankton and mesozooplankton. 
-    + Benguela Nino has a negative relationship with sardine recruits. 
-* Lag 1 (X in time T affects Y in time T+1)
-    + Microplankton have a significant positive relationship with both anchovy and sardine recruits
-    + Sardine recruits have a significant positive relationship with sardine total biomass, whereas anchovy does not have a strong relationship between recruits and biomass
-        + Anchovy catches don’t have a strong relationship with sardine biomass (maybe think about area/regional effects)
-* Lag 3 (X in time T affects Y in time T+3)
-    + Sardine biomass has a significant positive relationship with sardine catches
+-   Simultaneous effects
+    -   Upwelling has a significant positive relationship with large phytoplankton and a negative relationship with small phytoplankton.
+    -   Large and small phytoplankton have significant positive relationships with all zooplankton size classes, but the largest effect size is between large phytoplankton and macrozooplankton and small phytoplankton and mesozooplankton.
+    -   Benguela Nino has a negative relationship with sardine recruits.
+-   Lag 1 (X in time T affects Y in time T+1)
+    -   Microplankton have a significant positive relationship with both anchovy and sardine recruits
+    -   Sardine recruits have a significant positive relationship with sardine total biomass, whereas anchovy does not have a strong relationship between recruits and biomass
+        -   Anchovy catches don't have a strong relationship with sardine biomass (maybe think about area/regional effects)
+-   Lag 3 (X in time T affects Y in time T+3)
+    -   Sardine biomass has a significant positive relationship with sardine catches
 
 ```{r dag_full, include=FALSE}
-dag_full <- phylopath::DAG(pp_large~upwelling,
-                           pp_small~upwelling,
-                           macrozooplankton~pp_large,
-                           mesozooplankton~pp_large,
-                           microzooplankton~pp_large,
-                           macrozooplankton~pp_small,
-                           mesozooplankton~pp_small,
-                           microzooplankton~pp_small,
-                           anchovy_recruits~macrozooplankton,
-                           anchovy_recruits~mesozooplankton,
-                           anchovy_recruits~microzooplankton,
-                           anchovy_biomass~anchovy_recruits,
-                           anchovy_catch~anchovy_biomass,
-                           sardine_recruits~macrozooplankton,
-                           sardine_recruits~mesozooplankton,
-                           sardine_recruits~microzooplankton,
-                           sardine_recruits~sbni,
-                           sardine_biomass~anchovy_catch,
-                           sardine_biomass~sardine_recruits,
-                           sardine_catch~sardine_biomass)
+dag_full <- phylopath::DAG(chla_SB~upwelling_SB,
+                           chla_AB~upwelling_AB,
+                           chla_SB~sst_SB,
+                           chla_AB~sst_AB,
+                           copepod_AB~chla_AB,
+                           calanus_AB~chla_AB,
+                           smcopepod_AB~chla_AB,
+                           mdlgzp_SB~chla_SB,
+                           copepodabund_SB~chla_SB,
+                           smallzp_SB~chla_SB,
+                           accs_SB~chla_SB,
+                           log_rps_Anchovy~mdlgzp_SB,
+                           log_rps_Sardine~smallzp_SB,
+                           biomass_Anchovy~calanus_AB,
+                           biomass_Sardine~chla_AB, 
+                           biomass_Sardine~chla_SB,
+                           biomass_Sardine~smcopepod_AB,
+                           log_rps_Anchovy~biomass_Anchovy,
+                           log_rps_Sardine~biomass_Sardine,
+                           biomass_Anchovy~catches_Anchovy,
+                           biomass_Sardine~catches_Anchovy,
+                           biomass_Sardine~catches_Sardine)
+
+
+
 
 df_plot <- plot(dag_full, edge_width = 1, type="width",
                 text_size = 4, show.legend = FALSE, box_x = 12) +
-  scale_x_continuous(expand = c(0.05, 0.05)) +  
+  scale_x_continuous(expand = c(0.05, 0.05)) +
   labs(title = "directed acyclic graph - full") +
   NULL
 
 df_plot
 ```
-* Still need to figure out how to characterize the lags in the DAG
+
+-   Still need to figure out how to characterize the lags in the DAG
 
 ```{r sem_full}
 # colnames(sem_dat)
@@ -586,10 +640,12 @@ sem_dat_full <- sem_dat %>%
          chla_SB, chla_AB, chlaship_AB,## primary production
          # pico_SB, pico_AB, nano_SB, nano_AB, micro_SB, micro_AB, ## phytoplankton size
          copepodabund_SB, accs_SB, mdlgzp_SB, smallzp_SB, copepod_AB, calanus_AB, smcopepod_AB, # zooplankton community     
-         biomass_Anchovy, biomass_Sardine, log_rps_Anchovy, log_rps_Sardine,## fish
-         anchovy_catches, sardine_catches) %>% ## removals
+         biomass_Anchovy, biomass_Sardine, log_rps_Anchovy, log_rps_Sardine) %>% #,## fish
+         # anchovy_catches, sardine_catches) %>% ## removals
   as.data.frame()
+```
 
+```{r sem_simple_dat}
 
 ## guidance from ??make_dsem_ram()
 ### X -> Y, 1, XtoY indicates that X in time T affects Y in time T+1)
@@ -680,11 +736,17 @@ AIC(fit_simple)
 
 ```
 
+```{r dsem_simple_dag, fig.height = 12, fig.width = 15}
 
-```{r dsem_full_dag, fig.height = 12, fig.width = 15}
+lags_simple <- data.frame(summary(fit_simple)) %>% 
+  filter(!grepl("^AR.*|^V\\[.*", name)) %>% 
+  pull(lag) %>% 
+  unique()
 
-lags_simple <- unique(as.numeric(summary(fit_simple)$lag))
-i = 0
+# lags_simple <- unique(as.numeric(summary(fit_simple)$lag))
+
+
+# i = 0
 for(i in lags_simple){
   
   p1_simple <- NULL
@@ -717,7 +779,7 @@ for(i in lags_simple){
 
 ```
 
-```{r dsem_full_ts, warning=FALSE, message=FALSE}
+```{r dsem_simple_ts, warning=FALSE, message=FALSE}
 
 # Timeseries plot
 raw_dat_simple <- data.frame(year = rownames(sem_dat_simple), 
@@ -753,9 +815,19 @@ ts_plot_simple <- ggplot(pred_all_simple, aes(x = year, y = predicted, ymin = lo
 ts_plot_simple
 ```
 
+```{r dsem_simple_resid, warning=FALSE, message=FALSE}
 
+simple_sample <- dsem::loo_residuals(fit_simple, what="samples", track_progress=FALSE)
+which_use = which(!is.na(sem_dat_simple))
+fittedPredictedResponse = loo_residuals(fit_simple, what="loo", track_progress=FALSE)
+res = DHARMa::createDHARMa( simulatedResponse = apply(simple_sample,MARGIN=3,FUN=as.vector)[which_use,],
+                            observedResponse = unlist(sem_dat_simple)[which_use],
+                            fittedPredictedResponse = fittedPredictedResponse$est )
+plot(res)
 
-```{r sem_fish}
+```
+
+```{r sem_dat_full}
 # colnames(sem_dat)
 sem_dat_full <- sem_dat %>% 
   select(year, 
@@ -766,7 +838,6 @@ sem_dat_full <- sem_dat %>%
          biomass_Anchovy, biomass_Sardine, log_rps_Anchovy, log_rps_Sardine,## fish
          anchovy_catches, sardine_catches) %>% ## removals
   as.data.frame()
-
 
 ## guidance from ??make_dsem_ram()
 ### X -> Y, 1, XtoY indicates that X in time T affects Y in time T+1)
@@ -882,9 +953,13 @@ summary_fish <- summary(fit_fish) %>%
                    labels = c("***", "**", "*", "NS")))
 AIC(fit_fish)
 
+lags_fish <- data.frame(summary(fit_fish)) %>% 
+  filter(!grepl("^AR.*|^V\\[.*", name)) %>% 
+  pull(lag) %>% 
+  unique()
 
 
-for(i in c(0,2)){
+for(i in lags_fish){
   p1_fish <- NULL
   p2_fish <- NULL
   
@@ -951,32 +1026,60 @@ ts_plot_fish
 
 # Discussion ---
 
-
-------
+------------------------------------------------------------------------
 
 ## Supplemental plots
 
-### Data 
-```{r supplement_plots, include=TRUE}
+### Data
 
+```{r ag-plot, fig.cap="Agulhas cross-shelf gradient", include = TRUE}
 ag_plot
-pres_plot
-cap_plot
-tsa_plot
-bni_m / bni_s
-up_summer
-pp_plot
-zoop_plot
-rec1
-bio1
-sp_plot
-sard1
-anch1
+```
 
+```{r, pres-plot, fig.cap="Atmospheric pressure (hPa)"}
+pres_plot
+```
+
+```{r, cap-plot, fig.cap="Central Agulhas Pressure"}
+cap_plot
+```
+
+```{r, tsa-plot, fig.cap="TSA plot"}
+tsa_plot
 ```
 
 
+```{r, upsummer-plot, fig.cap="Summer upwelling"}
+up_summer
+```
+
+
+```{r, pp-plot, fig.cap="PP plot"}
+pp_plot
+```
+
+
+```{r, zoop-plot, fig.cap="Zooplankton plot"}
+zoop_ab_plot
+zoop_sb_plot
+```
+
+
+```{r, bio-plot, fig.cap="TSA plot"}
+rec1
+bio1
+sp_plot
+```
+
+```{r, catch-plot, fig.cap="Catch plot"}
+sard1
+anch1
+```
+
+
+
 ### Anchovy model ---
+
 ```{r sem_anchovy,eval=FALSE, echo = FALSE, message=FALSE, warning=FALSE}
 sem_dat_anch <- sem_dat %>% 
   select(year, upwelling, pp_large, pp_small, macrozooplankton,
@@ -1164,7 +1267,7 @@ coef_plot_anch <- ggplot(coef_dat_anch, aes(x = name, y = coef, ymin = lower, ym
 coef_plot_anch
 ```
 
-### Sardine model--- 
+### Sardine model---
 
 ```{r sem_sardine, eval=FALSE, echo = FALSE}
 sem_dat_sardine <- sem_dat %>% 
