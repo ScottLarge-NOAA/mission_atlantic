@@ -652,6 +652,8 @@ agulhas_dat <- readxl::read_xlsx("data/Huggett_et_al_Timeseries_AB.xlsx") %>%
 # Oithona_mgC_m2 - Mean integrated biomass (mg C m-2) of Oithonidae in the upper 200 m of the water column
 # Oncaea_mgC_m2 - Mean integrated biomass (mg C m-2) of Oncaeidae in the upper 200 m of the water column
 
+# https://data.ocean.gov.za/mims/catalog/10.15493/DEA.MIMS.10000003
+# https://data.ocean.gov.za/mims/catalog/10.15493/DEA.MIMS.10000002
 mean_chla_ab <- read.csv("https://repository.ocean.gov.za/index.php/s/fBF6LYP6mTtY7YP/download?path=&files=AB_shelf_openocean_seasonal_mean_reconstructed_chla_timeseries.csv")
 mean_chla_sb <- read.csv("https://repository.ocean.gov.za/index.php/s/ZsFSnxDbPompNJN/download?path=&files=SB_shelf_openocean_seasonal_mean_reconstructed_chla_timeseries.csv")
 
