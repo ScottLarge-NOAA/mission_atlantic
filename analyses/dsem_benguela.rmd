@@ -30,6 +30,7 @@ library(ggplot2)
 library(patchwork)
 library(lubridate)
 # install.packages("dsem")
+# remotes::install_github("James-Thorson-NOAA/dsem@dev")
 library(dsem) ## 1.3.0
 library(phylopath)
 
@@ -523,7 +524,7 @@ zplot <- ggplot(sem_dat_long, aes(x = year, y = val, group = var, color = var)) 
 # timeline_plot
 ```
 
-```{r, z-plot, fig.cap= "All indicators"}
+```{r, z-plot, fig.width=12, fig.height=12, fig.cap= "All indicators"}
 zplot
 ```
 
@@ -531,24 +532,6 @@ zplot
 timeline_plot
 ```
 
-```{r, include=TRUE, fig.cap = "test", include=FALSE}
-
-# ag_plot
-# pres_plot
-# cap_plot
-# tsa_plot
-# # bni_m / bni_s
-# up_summer
-# pp_plot
-# zoop_ab_plot
-# zoop_sb_plot
-# rec1
-# bio1
-# sp_plot
-# sard1
-# anch1
-
-```
 
 ## Causal modeling ---
 
@@ -620,187 +603,6 @@ sem_dat_full <- sem_dat %>%
   as.data.frame()
 ```
 
-```{r sem_simple_dat}
-
-## guidance from ??make_dsem_ram()
-### X -> Y, 1, XtoY indicates that X in time T affects Y in time T+1)
-### X -> Y, 0, XtoY indicates X affects Y simultaneously (lag=0) 
-
-# Specify model
-sem_simple <- "
-  # Link, lag, param_name (NA = off), fixed value (optional, 1 if param is off)
-  
-  ## AB environment mediates primary production
-  upwelling_AB -> chla_AB, 0, upwelling_to_ppAB
-  # sst_AB -> chla_AB, 0, sst_to_ppAB
-
-  ## SB environment mediates primary production
-  # upwelling_SB -> chla_SB, 0, upwelling_to_ppSB
-  # sst_SB -> chla_SB, 0, sst_to_ppSB
-
-  ## AB Trophic links between PP and zooplankton
-  chla_AB -> calanus_AB, 0, chla_to_calanusAB
-  chla_AB -> copepod_AB, 0, chla_to_copepodAB
-  # chla_AB -> smcopepod_AB, 0, chla_to_smallcopepodAB
- 
-  ## SB Trophic links between PP and zooplankton
-  chla_SB -> mdlgzp_SB, 0, chla_to_largezpSB
-  # chla_SB -> copepodabund_SB, 0, chla_to_copeopodabundSB
-  chla_SB -> smallzp_SB, 0, chla_to_smallzpSB
-  # chla_SB -> accs_SB, 0, chla_to_accsSB
-
-  # ## AR
-  # upwelling_SB -> upwelling_SB, 1, AR1, 0.001
-  upwelling_AB -> upwelling_AB, 1, AR2, 0.001
-  # sst_SB -> sst_SB, 1, AR3, 0.001
-  # sst_AB -> sst_AB, 1, AR4, 0.001
-   
-  chla_AB -> chla_AB, 1, AR5, 0.001
-  calanus_AB -> calanus_AB, 1, AR7, 0.001
-  # smcopepod_AB -> smcopepod_AB, 1, AR8, 0.001
-  copepod_AB -> copepod_AB, 1, AR9, 0.001
-
-  chla_SB -> chla_SB, 1,  AR10, 0.001
-  mdlgzp_SB -> mdlgzp_SB, 1, AR11, 0.001
-  smallzp_SB -> smallzp_SB, 1, AR12, 0.001
-  # copepodabund_SB -> copepodabund_SB, 1, AR13, 0.001
-  # accs_SB -> accs_SB, 1, AR14, 0.001
-
-#### ---
-"
-sem_dat_simple <- sem_dat_full %>% 
-  select(year, upwelling_AB, 
-         # sst_AB,
-         chla_SB, chla_AB,
-         # chlaship_AB,
-         # upwelling_SB, sst_SB,
-         # cap, tsa, agulhas_gradient,
-         # copepodabund_SB,
-         # accs_SB,
-         # smcopepod_AB,
-         calanus_AB,
-         copepod_AB,
-         mdlgzp_SB, smallzp_SB,
-       # log_rps_Anchovy, log_rps_Sardine, biomass_Anchovy, biomass_Sardine
-       ) %>% 
-   filter(!if_all(-year, is.na)) %>% 
-  filter(year >= 1985) %>%
-  as.data.frame()
-
-rownames(sem_dat_simple) <- sem_dat_simple$year
-sem_dat_simple <- sem_dat_simple[,-1]
-
-
-# Fit dsem
-fit_simple <- dsem( sem = sem_simple,
-            tsdata = ts(sem_dat_simple),
-            family =  rep('fixed', ncol(sem_dat_simple)),
-            control = dsem_control(use_REML = TRUE, quiet=TRUE))
-ParHat_simple = fit_simple$obj$env$parList()
-
-summary_simple <- summary(fit_simple) %>% 
-  mutate(sig = cut(p_value, breaks = c(-Inf, 0.01, 0.05, 0.10, Inf), 
-                   labels = c("***", "**", "*", "NS")))
-AIC(fit_simple)
-
-# AIC(fit_full)
-# 1551.142
-# 1548
-# 1545
-# 1543
-
-```
-
-```{r dsem_simple_dag, fig.height = 12, fig.width = 15}
-
-lags_simple <- data.frame(summary(fit_simple)) %>% 
-  filter(!grepl("^AR.*|^V\\[.*", name)) %>% 
-  pull(lag) %>% 
-  unique()
-
-# lags_simple <- unique(as.numeric(summary(fit_simple)$lag))
-
-
-# i = 0
-for(i in lags_simple){
-  
-  p1_simple <- NULL
-  p2_simple <- NULL
-
-  p1_simple <- plot( (as_fitted_DAG(fit_simple, lag = i)), edge_width = 1, type="width",
-                      text_size = 4, show.legend = FALSE, box_x = 12) +
-    scale_x_continuous(expand = c(0.05, 0.05)) +
-    labs(title = sprintf("lag %s effects", i)) +
-    NULL
-
-  p1_simple <- ggplot_build(p1_simple)
-  p1_simple$data[[1]]$edge_width <- 1
-  
-  
-  p2_simple <- plot( (as_fitted_DAG(fit_simple, what="p_value", lag = i)), #edge_width = 2, 
-                      type = "width",
-                      text_size = 4, show.legend = FALSE, colors=c('black', 'black'), 
-                      box_x = 12) +
-    scale_x_continuous(expand = c(0.05, 0.05)) +
-    labs(title = sprintf("Two-sided p-value (lag %s)", i)) +
-    NULL
-  
-  
-  p2_simple <- ggplot_build(p2_simple)
-  p2_simple$data[[1]]$edge_width <- 1
-  
-  print(wrap_ggplot_grob(ggplot_gtable(p1_simple))/wrap_ggplot_grob(ggplot_gtable(p2_simple)))
-}
-
-```
-
-```{r dsem_simple_ts, warning=FALSE, message=FALSE}
-
-# Timeseries plot
-raw_dat_simple <- data.frame(year = rownames(sem_dat_simple), 
-                         sem_dat_simple) %>% 
-  pivot_longer(!year, names_to = "var", values_to = "value")
-
-pred_model_simple <- data.frame(year = rownames(sem_dat_simple), 
-                         ParHat_simple$x_tj) %>% 
-  pivot_longer(!year, names_to = "var", values_to = "predicted")
-
-pred_sd_simple <- data.frame(year = rownames(sem_dat_simple),
-                      as.list(fit_simple$sdrep,what="Std.")$x_tj) %>% 
-  pivot_longer(!year, names_to = "var", values_to = "SD")
-
-pred_all_simple <- raw_dat_simple %>% 
-  left_join(pred_model_simple, by = join_by(year, var)) %>% 
-  left_join(pred_sd_simple, by = join_by(year, var)) %>% 
-  mutate(lower = predicted - ifelse(is.na(SD), 0, SD),
-         upper = predicted + ifelse(is.na(SD), 0, SD),
-         year = as.numeric(year)) 
-
-ts_plot_simple <- ggplot(pred_all_simple, aes(x = year, y = predicted, ymin = lower, ymax = upper, group = var)) +
-  geom_path() +
-  geom_ribbon(alpha = 0.2, color = "blue", fill = "blue") +
-  geom_point(aes(x = year, y = value)) +
-  facet_wrap(~var) +
-  scale_x_continuous(limits = c(1979, 2020), breaks = seq(1965, 2020, 5)) +
-  theme_minimal() +
-  labs(x = "", y = "",
-       title = "Estimated values",
-       subtitle = "measurements (black dots), predicted values (blue lines), and 95% predictive intervals (\u00B11.96 SE)") +
-  NULL
-ts_plot_simple
-```
-
-```{r dsem_simple_resid, warning=FALSE, message=FALSE}
-
-simple_sample <- dsem::loo_residuals(fit_simple, what="samples", track_progress=FALSE)
-which_use = which(!is.na(sem_dat_simple))
-fittedPredictedResponse = loo_residuals(fit_simple, what="loo", track_progress=FALSE)
-res = DHARMa::createDHARMa( simulatedResponse = apply(simple_sample,MARGIN=3,FUN=as.vector)[which_use,],
-                            observedResponse = unlist(sem_dat_simple)[which_use],
-                            fittedPredictedResponse = fittedPredictedResponse$est )
-plot(res)
-
-```
 
 ```{r sem_dat_full}
 # colnames(sem_dat)
@@ -917,54 +719,136 @@ sem_dat_fish <- sem_dat_fish[,-1]
 
 
 # Fit dsem
-fit_fish <- dsem( sem = sem_fish,
+fit_fish <- suppressWarnings(dsem( sem = sem_fish,
                   tsdata = ts(sem_dat_fish),
                   family =  rep('fixed', ncol(sem_dat_fish)),
-                  control = dsem_control(use_REML = TRUE, quiet=TRUE))
+                  control = dsem_control(use_REML = TRUE, quiet=TRUE)))
 ParHat_fish = fit_fish$obj$env$parList()
 
 summary_fish <- summary(fit_fish) %>% 
   mutate(sig = cut(p_value, breaks = c(-Inf, 0.01, 0.05, 0.10, Inf), 
                    labels = c("***", "**", "*", "NS")))
-AIC(fit_fish)
+# AIC(fit_fish)
 
 lags_fish <- data.frame(summary(fit_fish)) %>% 
   filter(!grepl("^AR.*|^V\\[.*", name)) %>% 
   pull(lag) %>% 
   unique()
 
+```
 
-for(i in lags_fish){
-  p1_fish <- NULL
-  p2_fish <- NULL
-  
-  p1_fish <- plot( (as_fitted_DAG(fit_fish, lag = i)), edge_width = 1, type="width",
-                   text_size = 4, show.legend = FALSE, box_x = 12) +
-    scale_x_continuous(expand = c(0.05, 0.05)) +
-    labs(title = sprintf("lag %s effects", i)) +
-    NULL
-  
-  p1_fish <- ggplot_build(p1_fish)
-  p1_fish$data[[1]]$edge_width <- 1
-  
-  
-  p2_fish <- plot( (as_fitted_DAG(fit_fish, what="p_value", lag = i)), #edge_width = 2, 
-                   type = "width",
-                   text_size = 4, show.legend = FALSE, colors=c('black', 'black'), 
-                   box_x = 12) +
-    scale_x_continuous(expand = c(0.05, 0.05)) +
-    labs(title = sprintf("Two-sided p-value (lag %s)", i)) +
-    NULL
-  
-  
-  p2_fish <- ggplot_build(p2_fish)
-  p2_fish$data[[1]]$edge_width <- 1
-  
-  print(wrap_ggplot_grob(ggplot_gtable(p1_fish))/wrap_ggplot_grob(ggplot_gtable(p2_fish)))
-}
+```{r dsem-full-dag, fig.height = 12, fig.width = 15}
+
+# lags_simple <- data.frame(summary(fit_simple)) %>% 
+#   filter(!grepl("^AR.*|^V\\[.*", name)) %>% 
+#   pull(lag) %>% 
+#   unique()
+
+# Extract stuff
+out_fish <- summary(fit_fish)
+# Format inputs
+from_fish <- ifelse(out_fish[,2] == 0, 
+               out_fish$first, 
+               paste0("lag(", out_fish$first, ", ", out_fish[,2],")"))
+vertices_fish <- union(out_fish$second, from_fish)
+fish_df <- data.frame(from = from_fish, 
+                       to = out_fish$second, 
+                       name = out_fish[,3]) 
+
+fish_df$label <- round(out_fish$Estimate, digits = 2)
+
+add_stars_fish <- cut(out_fish[,'p_value'], breaks=c(1,0.05,0.01,0.001,0) )
+add_stars_fish <- c("***","**","*","")[as.numeric(add_stars_fish)]
+fish_df$label = paste0(fish_df$label, add_stars_fish)
+fish_df$color = case_when(!grepl("\\*", fish_df$label) ~ "grey40",
+                     fish_df$label > 0 ~ "blue",
+                     fish_df$label < 0 ~ "red",
+                     TRUE ~ NA_character_)
+fish_df <- fish_df %>% 
+  mutate(label = round(out_fish$Estimate, digits = 2),
+         label = paste0(label, add_stars_fish),
+         color = case_when(!grepl("\\*", label) ~ "grey40",
+                     label > 0 ~ "blue",
+                     label < 0 ~ "red",
+                     TRUE ~ NA_character_)) %>% 
+  filter(!grepl("^V\\[.*", name))
+
+# lags_simple <- unique(as.numeric(summary(fit_simple)$lag))
+# pg <- plot( fit_simple, edge_label = "value_and_stars", style="ggraph")
+
+pg_fish <- igraph::graph_from_data_frame( d = fish_df,
+                               directed = TRUE,
+                               vertices = data.frame(vertices_fish) )
+
+# manual_layout = NULL
+# text_size = 6
+box_x = 12
+box_y = 8
+# edge_width = 1
+# curvature = 0
+# rotation = 0
+# flip_x = FALSE
+# flip_y = FALSE
+l_fish <- ggraph::create_layout(pg_fish, layout = 'igraph', algorithm = 'sugiyama')
+l_fish$y <- ifelse(grepl(x = l_fish$name, pattern = "^lag\\("), 
+                   purrr::map_dbl(.x = l_fish$y, ~ round(runif(1, min = -.25, max = 2) + .x, 2)),
+                   l_fish$y)
+
+arrow <- grid::arrow(type = 'closed', 18, grid::unit(15, 'points'))
+p1_fish <- ggraph::ggraph(l_fish) +
+  ggraph::geom_edge_arc(aes(label = label, edge_colour = color), 
+                        angle_calc = "across", force_flip = TRUE, 
+                        strength = 0, arrow = arrow, edge_width = 1, 
+                        # check_overlap = TRUE,
+                        label_push = grid::unit(-0.75, "cm"),
+                        end_cap = ggraph::rectangle(box_x, box_y, 'mm'),
+                        start_cap = ggraph::rectangle(box_x, box_y, 'mm')) +
+  ggraph::geom_node_text(ggplot2::aes(label = name), hjust = 0) +
+  ggraph::theme_graph(base_family = 'sans') + 
+  scale_x_continuous(expand = c(0.1, 0.1)) +
+  scale_y_continuous(expand = c(0.1, 0.1)) +
+  NULL
+
+p1_fish
+
+```
 
 
+```{r full-plot, fig.height=15, fig.width=12}
+# for(i in lags_fish){
+#   p1_fish <- NULL
+#   p2_fish <- NULL
+#   
+#   
+#   p1_fish <- plot( (as_fitted_DAG(fit_fish, lag = i)), edge_width = 1, type="width",
+#                    text_size = 4, show.legend = FALSE, box_x = 12) +
+#     scale_x_continuous(expand = c(0.05, 0.05)) +
+#     labs(title = sprintf("lag %s effects", i)) +
+#     NULL
+#   
+#   p1_fish <- ggplot_build(p1_fish)
+#   p1_fish$data[[1]]$edge_width <- 1
+#   
+#   
+#   p2_fish <- plot( (as_fitted_DAG(fit_fish, what="p_value", lag = i)), #edge_width = 2, 
+#                    type = "width",
+#                    text_size = 4, show.legend = FALSE, colors=c('black', 'black'), 
+#                    box_x = 12) +
+#     scale_x_continuous(expand = c(0.05, 0.05)) +
+#     labs(title = sprintf("Two-sided p-value (lag %s)", i)) +
+#     NULL
+#   
+#   
+#   p2_fish <- ggplot_build(p2_fish)
+#   p2_fish$data[[1]]$edge_width <- 1
+#   
+#   print(wrap_ggplot_grob(ggplot_gtable(p1_fish))/wrap_ggplot_grob(ggplot_gtable(p2_fish)))
+# }
+# 
 
+```
+
+```{r full-ts-plot}
 # Timeseries plot
 raw_dat_fish <- data.frame(year = rownames(sem_dat_fish), 
                          sem_dat_fish) %>% 
@@ -998,6 +882,220 @@ ts_plot_fish <- ggplot(pred_all_fish, aes(x = year, y = predicted, ymin = lower,
   NULL
 ts_plot_fish
 ```
+
+
+
+
+```{r sem_simple_dat, echo=FALSE}
+
+## guidance from ??make_dsem_ram()
+### X -> Y, 1, XtoY indicates that X in time T affects Y in time T+1)
+### X -> Y, 0, XtoY indicates X affects Y simultaneously (lag=0) 
+
+# Specify model
+sem_simple <- "
+  # Link, lag, param_name (NA = off), fixed value (optional, 1 if param is off)
+  
+  ## AB environment mediates primary production
+  upwelling_AB -> chla_AB, 0, upwelling_to_ppAB
+  # sst_AB -> chla_AB, 0, sst_to_ppAB
+
+  ## SB environment mediates primary production
+  # upwelling_SB -> chla_SB, 0, upwelling_to_ppSB
+  # sst_SB -> chla_SB, 0, sst_to_ppSB
+
+  ## AB Trophic links between PP and zooplankton
+  chla_AB -> calanus_AB, 0, chla_to_calanusAB
+  chla_AB -> copepod_AB, 0, chla_to_copepodAB
+  # chla_AB -> smcopepod_AB, 0, chla_to_smallcopepodAB
+ 
+  ## SB Trophic links between PP and zooplankton
+  chla_SB -> mdlgzp_SB, 0, chla_to_largezpSB
+  # chla_SB -> copepodabund_SB, 0, chla_to_copeopodabundSB
+  chla_SB -> smallzp_SB, 0, chla_to_smallzpSB
+  # chla_SB -> accs_SB, 0, chla_to_accsSB
+
+  # ## AR
+  # upwelling_SB -> upwelling_SB, 1, AR1, 0.001
+  # upwelling_AB -> upwelling_AB, 1, AR2, 0.001
+  # sst_SB -> sst_SB, 1, AR3, 0.001
+  # sst_AB -> sst_AB, 1, AR4, 0.001
+   
+  # chla_AB -> chla_AB, 1, AR5, 0.001
+  calanus_AB -> calanus_AB, 1, AR7, 0.001
+  # smcopepod_AB -> smcopepod_AB, 1, AR8, 0.001
+  copepod_AB -> copepod_AB, 1, AR9, 0.001
+
+  # chla_SB -> chla_SB, 1,  AR10, 0.001
+  # mdlgzp_SB -> mdlgzp_SB, 1, AR11, 0.001
+  # smallzp_SB -> smallzp_SB, 1, AR12, 0.001
+  # copepodabund_SB -> copepodabund_SB, 1, AR13, 0.001
+  # accs_SB -> accs_SB, 1, AR14, 0.001
+
+#### ---
+"
+sem_dat_simple <- sem_dat_full %>% 
+  select(year, upwelling_AB, 
+         # sst_AB,
+         chla_SB, chla_AB,
+         # chlaship_AB,
+         # upwelling_SB, sst_SB,
+         # cap, tsa, agulhas_gradient,
+         # copepodabund_SB,
+         # accs_SB,
+         # smcopepod_AB,
+         calanus_AB,
+         copepod_AB,
+         mdlgzp_SB, smallzp_SB,
+       # log_rps_Anchovy, log_rps_Sardine, biomass_Anchovy, biomass_Sardine
+       ) %>% 
+   filter(!if_all(-year, is.na)) %>% 
+  filter(year >= 1985) %>%
+  as.data.frame()
+
+rownames(sem_dat_simple) <- sem_dat_simple$year
+sem_dat_simple <- sem_dat_simple[,-1]
+
+
+# Fit dsem
+fit_simple <- suppressWarnings(dsem( sem = sem_simple,
+                    tsdata = ts(sem_dat_simple),
+                    family =  rep('fixed', ncol(sem_dat_simple)),
+                    control = dsem_control(use_REML = TRUE, quiet=TRUE)))
+ParHat_simple = fit_simple$obj$env$parList()
+
+summary_simple <- summary(fit_simple) %>%
+  mutate(sig = cut(p_value, breaks = c(-Inf, 0.01, 0.05, 0.10, Inf), 
+                   labels = c("***", "**", "*", "NS")))
+# AIC(fit_simple)
+
+# AIC(fit_full)
+# 1551.142
+# 1548
+# 1545
+# 1543
+# 428
+```
+
+```{r dsem_simple_dag, fig.height = 8, fig.width = 15}
+
+# lags_simple <- data.frame(summary(fit_simple)) %>% 
+#   filter(!grepl("^AR.*|^V\\[.*", name)) %>% 
+#   pull(lag) %>% 
+#   unique()
+
+# Extract stuff
+out <- summary(fit_simple)
+# Format inputs
+from <- ifelse(out[,2] == 0, 
+               out$first, 
+               paste0("lag(", out$first, ", ", out[,2],")"))
+vertices <- union(out$second, from )
+simple_df <- data.frame(from = from, 
+                       to = out$second, 
+                       name = out[,3]) 
+
+simple_df$label <- round(out$Estimate, digits = 2)
+
+add_stars <- cut(out[,'p_value'], breaks=c(1,0.05,0.01,0.001,0) )
+add_stars <- c("***","**","*","")[as.numeric(add_stars)]
+simple_df$label = paste0(simple_df$label, add_stars)
+simple_df$color = case_when(!grepl("\\*", simple_df$label) ~ "grey40",
+                     simple_df$label > 0 ~ "blue",
+                     simple_df$label < 0 ~ "red",
+                     TRUE ~ NA_character_)
+simple_df <- simple_df %>% 
+  mutate(label = round(out$Estimate, digits = 2),
+         label = paste0(label, add_stars),
+         color = case_when(!grepl("\\*", label) ~ "grey40",
+                     label > 0 ~ "blue",
+                     label < 0 ~ "red",
+                     TRUE ~ NA_character_)) %>% 
+  filter(!grepl("^V\\[.*", name))
+
+# lags_simple <- unique(as.numeric(summary(fit_simple)$lag))
+# pg <- plot( fit_simple, edge_label = "value_and_stars", style="ggraph")
+
+pg <- igraph::graph_from_data_frame( d = simple_df,
+                               directed = TRUE,
+                               vertices = data.frame(vertices) )
+
+# manual_layout = NULL
+# text_size = 6
+box_x = 12
+box_y = 8
+# edge_width = 1
+# curvature = 0
+# rotation = 0
+# flip_x = FALSE
+# flip_y = FALSE
+l = ggraph::create_layout(pg, 'igraph', algorithm = 'sugiyama')
+
+arrow <- grid::arrow(type = 'closed', 18, grid::unit(15, 'points'))
+p1_simple <- ggraph::ggraph(l) +
+  ggraph::geom_edge_arc(aes(label = label, edge_colour = color), 
+                        angle_calc = "across", force_flip = TRUE, 
+                        strength = 0, arrow = arrow, edge_width = 1, 
+                        label_push = grid::unit(-0.75, "cm"),
+                        end_cap = ggraph::rectangle(box_x, box_y, 'mm'),
+                        start_cap = ggraph::rectangle(box_x, box_y, 'mm')) +
+  ggraph::geom_node_text(ggplot2::aes(label = name), hjust = 0) +
+  ggraph::theme_graph(base_family = 'sans') + 
+  scale_x_continuous(expand = c(0.05, 0.05)) +
+  NULL
+
+p1_simple
+
+```
+
+```{r dsem_simple_ts}
+
+# Timeseries plot
+raw_dat_simple <- data.frame(year = rownames(sem_dat_simple), 
+                         sem_dat_simple) %>% 
+  pivot_longer(!year, names_to = "var", values_to = "value")
+
+pred_model_simple <- data.frame(year = rownames(sem_dat_simple), 
+                         ParHat_simple$x_tj) %>% 
+  pivot_longer(!year, names_to = "var", values_to = "predicted")
+
+pred_sd_simple <- data.frame(year = rownames(sem_dat_simple),
+                      as.list(fit_simple$sdrep,what="Std.")$x_tj) %>% 
+  pivot_longer(!year, names_to = "var", values_to = "SD")
+
+pred_all_simple <- raw_dat_simple %>% 
+  left_join(pred_model_simple, by = join_by(year, var)) %>% 
+  left_join(pred_sd_simple, by = join_by(year, var)) %>% 
+  mutate(lower = predicted - ifelse(is.na(SD), 0, SD),
+         upper = predicted + ifelse(is.na(SD), 0, SD),
+         year = as.numeric(year)) 
+
+ts_plot_simple <- ggplot(pred_all_simple, aes(x = year, y = predicted, ymin = lower, ymax = upper, group = var)) +
+  geom_path() +
+  geom_ribbon(alpha = 0.2, color = "blue", fill = "blue") +
+  geom_point(aes(x = year, y = value)) +
+  facet_wrap(~var) +
+  scale_x_continuous(limits = c(1979, 2020), breaks = seq(1965, 2020, 5)) +
+  theme_minimal() +
+  labs(x = "", y = "",
+       title = "Estimated values",
+       subtitle = "measurements (black dots), predicted values (blue lines), and 95% predictive intervals (\u00B11.96 SE)") +
+  NULL
+ts_plot_simple
+```
+
+```{r dsem_simple_resid}
+# 
+# simple_sample <- dsem::loo_residuals(fit_simple, what="samples", track_progress=FALSE)
+# which_use = which(!is.na(sem_dat_simple))
+# fittedPredictedResponse = loo_residuals(fit_simple, what="loo", track_progress=FALSE)
+# res = DHARMa::createDHARMa( simulatedResponse = apply(simple_sample,MARGIN=3,FUN=as.vector)[which_use,],
+#                             observedResponse = unlist(sem_dat_simple)[which_use],
+#                             fittedPredictedResponse = fittedPredictedResponse$est )
+# plot(res)
+
+```
+
 
 # Discussion ---
 
